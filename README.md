@@ -13,6 +13,7 @@ One owner, several stores, several employees. Every sale comes off the shelf aut
 - **Day summary:** one tap copies a summary to paste into the owner's WhatsApp group.
 - **Logins:** the owner signs in with email. In **Settings → Employees** the owner adds each employee with just a **name, ID and 4–6 digit code**; employees sign in with ID + code (no email). 5 wrong codes lock the ID for 15 minutes. Each business only sees its own data.
 - **Photos (optional):** add a thumbnail to any accessory by taking it with the camera, choosing it from the gallery, or pasting a copied image. Photos are shrunk before upload.
+- **Customer catalog:** a public page (no login) with photo, name, price and Available / Sold out — never units or cost. The owner shares it from **Settings → Customer catalog**; staff tap **Staff sign in** to see everything.
 - **Live:** every phone sees changes without refreshing.
 
 ## Stack
@@ -27,6 +28,7 @@ config.js             your Supabase URL + anon key  ← edit this
 supabase/schema.sql   tables, security rules, sale/stock functions, photo storage
 supabase/002_photos.sql  photo update for projects set up before photos existed
 supabase/003_employees.sql  employee ID + code logins for projects set up before that existed
+supabase/004_catalog.sql    public customer catalog for projects set up before that existed
 ```
 
 ## Setup (one time)

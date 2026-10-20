@@ -12,6 +12,9 @@ const S = {
   employees: [], empTableMissing: false, busyLogin: false,
 };
 try { S.storeId = localStorage.getItem("storeId"); } catch (_) {}
+/* catalog code: from a shared link (?c=xxxx) or remembered on this device */
+S.catalog = new URLSearchParams(location.search).get("c");
+try { if (S.catalog) localStorage.setItem("catalog", S.catalog); else S.catalog = localStorage.getItem("catalog"); } catch (_) {}
 
 /* ───────────── helpers ───────────── */
 const $ = (s) => document.querySelector(s);
@@ -40,11 +43,12 @@ function setStore(id) {
 
 /* ───────────── data ───────────── */
 async function loadMembership() {
-  const { data, error } = await sb.from("members").select("org_id, role, display_name, orgs(id, name, join_code)")
+  const { data, error } = await sb.from("members").select("org_id, role, display_name, orgs(*)")
     .eq("user_id", S.session.user.id).limit(1);
   if (error) throw error;
   S.member = data?.[0] || null;
   S.org = S.member?.orgs || null;
+  if (S.org?.catalog_code) { S.catalog = S.org.catalog_code; try { localStorage.setItem("catalog", S.catalog); } catch (_) {} }
 }
 async function loadAll() {
   const org = S.org.id;
@@ -86,7 +90,7 @@ function listenLive() {
 /* ───────────── routing ───────────── */
 async function route() {
   $("#bar").hidden = true;
-  if (!S.session) return renderAuth();
+  if (!S.session) return S.catalog ? renderCatalog() : renderAuth();
   try {
     await loadMembership();
     if (!S.member && S.session.user.is_anonymous) { await sb.auth.signOut(); return renderAuth("emp", "Your access changed. Sign in again."); }
@@ -116,7 +120,8 @@ function renderAuth(mode = "emp", msg = "") {
         <p class="err" id="a-err" role="alert">${esc(msg)}</p>
         <button class="btn wide" type="submit">Sign in</button>
       </form>
-      <button class="link" data-act="toSignIn">I'm the owner</button>`;
+      <button class="link" data-act="toSignIn">I'm the owner</button>
+      ${S.catalog ? `<button class="link" data-act="toCatalog">← Back to catalog</button>` : ""}`;
     return;
   }
   $("#app").innerHTML = `
@@ -128,7 +133,8 @@ function renderAuth(mode = "emp", msg = "") {
       <button class="btn wide" type="submit">${mode === "in" ? "Sign in" : "Create account"}</button>
     </form>
     <button class="link" data-act="${mode === "in" ? "toSignUp" : "toSignIn"}">${mode === "in" ? "New owner? Create an account" : "Already have an account? Sign in"}</button>
-    <button class="link" data-act="toEmp">Employee? Sign in with ID and code</button>`;
+    <button class="link" data-act="toEmp">Employee? Sign in with ID and code</button>
+    ${S.catalog ? `<button class="link" data-act="toCatalog">← Back to catalog</button>` : ""}`;
 }
 async function submitAuth(form) {
   const email = $("#a-email").value.trim(), password = $("#a-pass").value, mode = form.dataset.mode;
@@ -159,6 +165,39 @@ async function submitEmp(form) {
   }
 }
 
+/* ───────────── public catalog (no login) ───────────── */
+async function renderCatalog() {
+  $("#bar").hidden = true;
+  $("#app").innerHTML = `<div class="empty">Loading…</div>`;
+  const { data, error } = await sb.rpc("get_catalog", { p_code: S.catalog });
+  if (S.session) return;                          // signed in while loading
+  if (error || !data) {
+    if (!error) { try { localStorage.removeItem("catalog"); } catch (_) {} S.catalog = null; }
+    return renderAuth();
+  }
+  S.cat = data; S.catQ = "";
+  $("#app").innerHTML = `
+    <div class="cathead"><div style="min-width:0"><span class="eyebrow">Accessories</span><h1>${esc(data.business)}</h1>
+      ${data.stores.length ? `<p class="muted" style="font-size:14px">${data.stores.map(esc).join(" · ")}</p>` : ""}</div>
+      <button class="btn ghost" data-act="toEmp">Staff sign in</button></div>
+    <input id="cq" type="search" placeholder="Search: case 16, charger…" autocomplete="off">
+    <div class="catgrid" id="cgrid"></div>
+    <p class="muted" style="font-size:13px;text-align:center">Ask us in the store for anything you don't see.</p>`;
+  $("#cq").addEventListener("input", (e) => { S.catQ = e.target.value; drawCatalog(); });
+  drawCatalog();
+}
+function drawCatalog() {
+  const words = S.catQ.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const items = S.cat.items.filter((p) => words.every((w) => p.name.toLowerCase().includes(w)))
+    .sort((a, b) => (b.in_stock - a.in_stock) || a.name.localeCompare(b.name));
+  $("#cgrid").innerHTML = items.length ? items.map((p) => `<div class="citem ${p.in_stock ? "" : "out"}">
+      ${thumb(p, "cimg")}
+      <div class="cbody"><b>${esc(p.name)}</b>
+        <div class="cmeta">${p.price != null ? `<span class="price">${money(p.price)}</span>` : ""}
+        <span class="avail">${p.in_stock ? "Available" : "Sold out"}</span></div></div></div>`).join("")
+    : `<div class="empty" style="grid-column:1/-1">Nothing matches your search.</div>`;
+}
+
 /* ───────────── first-time setup ───────────── */
 function renderOnboarding() {
   $("#app").innerHTML = `
@@ -185,14 +224,6 @@ async function submitOrg() {
   if (!stores.length) return ($("#o-err").textContent = "Add at least one store.");
   const { error } = await sb.rpc("create_org", { p_name: name, p_stores: stores, p_display_name: you });
   if (error) return ($("#o-err").textContent = errText(error));
-  route();
-}
-async function submitJoin() {
-  const code = $("#j-code").value.trim(), you = $("#j-you").value.trim();
-  if (code.length !== 6) return ($("#j-err").textContent = "The code has 6 characters.");
-  if (!you) return ($("#j-err").textContent = "Enter your name so sales show who made them.");
-  const { error } = await sb.rpc("join_org", { p_code: code, p_display_name: you });
-  if (error) return ($("#j-err").textContent = errText(error));
   route();
 }
 
@@ -231,6 +262,11 @@ function renderSettings() {
       <label>Add a store<input id="newStore" placeholder="New store address"></label>
       <button class="btn" type="submit">Save stores</button></form>
 ` : ""}
+    ${isOwner() ? (S.org.catalog_code ? `<div class="card"><h3>Customer catalog</h3>
+      <p class="muted">Photos, names and prices only — never units or cost. Share this link or open it on the store tablet.</p>
+      <div class="linkbox num" id="catLink">${esc(location.origin + location.pathname + "?c=" + S.org.catalog_code)}</div>
+      <div class="grid2"><button class="btn" data-act="copyCat">Copy link</button><a class="btn ghost" style="text-align:center;text-decoration:none;display:grid;place-items:center" href="?c=${esc(S.org.catalog_code)}" target="_blank" rel="noopener">Open</a></div></div>`
+      : `<div class="card"><h3>Customer catalog</h3><p class="err">Run supabase/004_catalog.sql in Supabase to turn this on.</p></div>`) : ""}
     <div class="card"><p class="muted">Signed in as ${esc(S.session.user.email || S.member.display_name)}</p><button class="btn ghost" data-act="signOut">Sign out</button></div>`;
 }
 async function submitEmpAdd() {
@@ -508,6 +544,10 @@ document.addEventListener("click", async (e) => {
   const a = el.dataset.act, id = el.dataset.id;
   if (a === "closeBg" && e.target !== el) return;
   const actions = {
+    toCatalog: () => renderCatalog(),
+    copyCat: async () => { const t = $("#catLink").textContent;
+      try { await navigator.clipboard.writeText(t); toast("Link copied"); }
+      catch (_) { const r = document.createRange(); r.selectNodeContents($("#catLink")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Selected. Copy it with your phone's Copy button."); } },
     retry: route, toSignUp: () => renderAuth("up"), toSignIn: () => renderAuth("in"), toEmp: () => renderAuth("emp"),
     editEmp: () => openEmp(id),
     askDelEmp: () => ($("#delZone").innerHTML = `<div class="confirm">Remove this employee? Their past sales stay. <button type="button" class="btn danger" data-act="doDelEmp" data-id="${id}">Yes, remove</button></div>`),
