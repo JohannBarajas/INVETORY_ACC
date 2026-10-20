@@ -280,7 +280,7 @@ function renderStore() {
   if (!$("#q")) {
     $("#app").innerHTML = `
       <div class="head"><div class="line"><div><span class="eyebrow">You're at</span><h2 id="storeName"></h2></div>
-        <button class="link" data-act="changeStore">Change store</button></div>
+        <div class="headlinks">${isOwner() ? `<button class="link" data-act="settings">⚙ Employees</button>` : ""}<button class="link" data-act="changeStore">Change store</button></div></div>
         <input id="q" type="search" placeholder="Search: case 16, cable…" autocomplete="off"></div>
       <div id="lowBox"></div>
       <details class="today" id="today"><summary id="todaySum"></summary><div id="todayList"></div></details>
@@ -516,7 +516,7 @@ document.addEventListener("click", async (e) => {
     signOut: async () => { await sb.auth.signOut(); setStore(null); S.view = "main"; },
     addStoreField: () => { const n = document.querySelectorAll(".o-store").length + 1;
       $("#o-stores").insertAdjacentHTML("beforeend", `<label>Store ${n}<input class="o-store"></label>`); },
-    settings: () => { S.view = "settings"; render(); }, back: () => { S.view = "main"; $("#app").innerHTML = ""; render(); },
+    settings: () => { S.view = "settings"; $("#app").innerHTML = ""; render(); scrollTo(0, 0); }, back: () => { S.view = "main"; $("#app").innerHTML = ""; render(); },
     changeStore: () => { setStore(null); $("#app").innerHTML = ""; render(); },
     inc: () => bump(id, 1), dec: () => bump(id, -1),
     edit: () => openEdit(id), add: () => openEdit(null), sell: openSale,

@@ -137,3 +137,4 @@ textarea{font:inherit;font-size:15px;width:100%;min-height:160px;border:1px soli
 .check{flex-direction:row;align-items:center;gap:10px;font-size:16px;color:var(--ink)}
 .check input{width:22px;height:22px;min-height:0}
 #empAddForm{border-top:1px solid var(--line);padding-top:12px}
+.headlinks{display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
