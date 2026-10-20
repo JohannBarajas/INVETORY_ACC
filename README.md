@@ -12,6 +12,7 @@ One owner, several stores, several employees. Every sale comes off the shelf aut
 - **Today's sales:** total for the store, who sold what, **Void** to undo a mistake (units go back to stock).
 - **Day summary:** one tap copies a summary to paste into the owner's WhatsApp group.
 - **Logins:** the owner creates the business and gets a 6-character code; employees sign up and join with it. Each business only sees its own data.
+- **Photos (optional):** add a thumbnail to any accessory from the phone's camera or gallery. Photos are shrunk before upload.
 - **Live:** every phone sees changes without refreshing.
 
 ## Stack
@@ -23,7 +24,8 @@ index.html            page shell
 styles.css            styles (light/dark, phone-first)
 app.js                the app
 config.js             your Supabase URL + anon key  ← edit this
-supabase/schema.sql   tables, security rules, sale/stock functions
+supabase/schema.sql   tables, security rules, sale/stock functions, photo storage
+supabase/002_photos.sql  photo update for projects set up before photos existed
 ```
 
 ## Setup (one time)

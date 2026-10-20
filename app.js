@@ -20,6 +20,10 @@ const key = (pid, sid) => pid + ":" + sid;
 const qtyOf = (pid, sid) => (S.inv.get(key(pid, sid)) || 0) + (S.pending.get(key(pid, sid)) || 0);
 const product = (id) => S.products.find((p) => p.id === id);
 const store = (id) => S.stores.find((s) => s.id === id);
+const photoUrl = (p) => (p?.photo_path ? `${SUPABASE_URL}/storage/v1/object/public/product-photos/${p.photo_path}` : "");
+const thumb = (p, cls = "thumb") => photoUrl(p)
+  ? `<img class="${cls}" src="${esc(photoUrl(p))}" alt="" loading="lazy">`
+  : `<span class="${cls} ph" aria-hidden="true">${esc((p?.name || "?").trim().slice(0, 1).toUpperCase())}</span>`;
 const isOwner = () => S.member?.role === "owner";
 const time = (iso) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 const errText = (e) => (e?.message || "Something went wrong").replace(/^.*?ERROR:\s*/, "");
@@ -239,9 +243,10 @@ function renderList() {
   const list = S.products.filter((p) => words.every((w) => p.name.toLowerCase().includes(w)));
   $("#plist").innerHTML = list.length ? list.map((p) => {
     const q = qtyOf(p.id, sid);
-    return `<div class="row"><div style="min-width:0">
+    return `<div class="row">${thumb(p)}<div style="min-width:0">
       <button class="name" data-act="edit" data-id="${p.id}">${esc(p.name)}</button>
-      <div class="cost">Cost <b>${money(p.cost)}</b>${p.price != null ? ` · Price <b>${money(p.price)}</b>` : ""}</div></div>
+      <div class="cost">Cost <b>${money(p.cost)}</b>${p.price != null ? ` · Price <b>${money(p.price)}</b>` : ""}
+        · <button class="editlink" data-act="edit" data-id="${p.id}">Edit</button></div></div>
       <div class="stepper"><button data-act="dec" data-id="${p.id}" aria-label="Remove one">−</button>
       <span class="q ${q < p.low_stock_threshold ? "low" : ""}">${q}</span>
       <button data-act="inc" data-id="${p.id}" aria-label="Add one">+</button></div></div>`;
@@ -272,7 +277,7 @@ function drawSale() {
     const words = S.sale.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const list = S.products.filter((x) => words.every((w) => x.name.toLowerCase().includes(w)));
     const picks = list.length ? list.map((x) => { const n = qtyOf(x.id, sid);
-      return `<button type="button" class="pick" data-act="pickSale" data-id="${x.id}" ${n ? "" : "disabled"}><b>${esc(x.name)}</b><span class="left">${n ? n + " left" : "sold out"}</span></button>`; }).join("")
+      return `<button type="button" class="pick" data-act="pickSale" data-id="${x.id}" ${n ? "" : "disabled"}><span class="pickname">${thumb(x, "thumb sm")}<b>${esc(x.name)}</b></span><span class="left">${n ? n + " left" : "sold out"}</span></button>`; }).join("")
       : `<div class="empty">Not on the list. Add it first with + Add.</div>`;
     if ($("#picks")) { $("#picks").innerHTML = picks; return; }
     $("#sheetRoot").innerHTML = `<div class="sheetbg" data-act="closeBg"><form class="sheet" id="saleForm" novalidate>
@@ -286,7 +291,7 @@ function drawSale() {
   const max = qtyOf(p.id, sid);
   $("#sheetRoot").innerHTML = `<div class="sheetbg" data-act="closeBg"><form class="sheet" id="saleForm" novalidate>
     <h2>Record a sale</h2>
-    <div class="chosen"><div><b>${esc(p.name)}</b><div class="cost">${max} left at ${esc(store(sid)?.name)}</div></div>
+    <div class="chosen"><div class="pickname">${thumb(p)}<div><b>${esc(p.name)}</b><div class="cost">${max} left at ${esc(store(sid)?.name)}</div></div></div>
       <button type="button" class="link" data-act="repick">Change</button></div>
     <label>Sale price (each, USD)<input id="s-price" type="number" step="0.01" min="0" inputmode="decimal" value="${p.price ?? ""}" placeholder="0.00"></label>
     <label>Quantity<div class="qtyrow"><button type="button" data-act="sq" data-d="-1" aria-label="Less">−</button>
@@ -343,9 +348,15 @@ async function copySummary() {
 function openEdit(id) {
   const p = id ? product(id) : { name: "", cost: "", low_stock_threshold: 3 };
   const sname = store(S.storeId)?.name || "";
+  S.photo = { file: null, remove: false };
   $("#sheetRoot").innerHTML = `<div class="sheetbg" data-act="closeBg"><form class="sheet" id="pform" data-id="${id || ""}" novalidate>
     <h2>${id ? "Edit" : "Add to inventory"}</h2>
     <label>Name<input id="f-name" value="${esc(p.name)}" placeholder="Case iPhone 16"></label>
+    <div class="photoField"><div id="f-prev">${thumb(p, "thumb big")}</div>
+      <div class="stack" style="gap:4px;align-items:flex-start">
+        <label class="btn ghost filebtn">${p.photo_path ? "Change photo" : "Add photo (optional)"}<input id="f-photo" type="file" accept="image/*" hidden></label>
+        <button type="button" class="link" data-act="rmPhoto" id="f-rm" ${p.photo_path ? "" : "hidden"}>Remove photo</button>
+      </div></div>
     <div class="grid2"><label>Cost (USD)<input id="f-cost" type="number" step="0.01" min="0" inputmode="decimal" value="${p.cost}"></label>
       <label>Stock at ${esc(sname)}<input id="f-stock" type="number" min="0" inputmode="numeric" value="${id ? qtyOf(id, S.storeId) : 0}"></label></div>
     <label>Alert when fewer than<input id="f-low" type="number" min="0" inputmode="numeric" value="${p.low_stock_threshold}"></label>
@@ -353,21 +364,48 @@ function openEdit(id) {
     <div class="foot">${id && isOwner() ? `<button type="button" class="btn ghost" data-act="askDel" data-id="${id}">Delete</button>` : ""}
       <span class="right"><button type="button" class="btn ghost" data-act="close">Cancel</button><button class="btn" type="submit">Save</button></span></div>
   </form></div>`;
+  $("#f-photo").addEventListener("change", (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    S.photo = { file: f, remove: false };
+    $("#f-prev").innerHTML = `<img class="thumb big" src="${URL.createObjectURL(f)}" alt="">`;
+    $("#f-rm").hidden = false;
+  });
   if (!id) setTimeout(() => $("#f-name").focus(), 50);
+}
+/* make photos small before upload (max 480px, JPEG) so they load fast on phones */
+async function shrink(file) {
+  let img = await createImageBitmap(file).catch(() => null);
+  if (!img) img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("That file isn't a photo we can read.")); i.src = URL.createObjectURL(file); });
+  const sc = Math.min(1, 480 / Math.max(img.width, img.height));
+  const c = document.createElement("canvas"); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return new Promise((res) => c.toBlob(res, "image/jpeg", 0.82));
 }
 async function submitEdit(form) {
   const id = form.dataset.id, sid = S.storeId, name = $("#f-name").value.trim();
   if (!name) return ($("#f-err").textContent = "Enter a name, for example: Case iPhone 16.");
   const fields = { name, cost: parseFloat($("#f-cost").value) || 0, low_stock_threshold: parseInt($("#f-low").value, 10) || 0 };
   const want = parseInt($("#f-stock").value, 10) || 0;
+  const btn = form.querySelector("[type=submit]"); btn.disabled = true; btn.textContent = "Saving…";
   try {
     let pid = id;
     if (id) { const { error } = await sb.from("products").update(fields).eq("id", id); if (error) throw error; }
     else { const { data, error } = await sb.from("products").insert({ ...fields, org_id: S.org.id }).select("id").single(); if (error) throw error; pid = data.id; }
     const delta = want - (id ? qtyOf(id, sid) : 0);
     if (delta) { const { error } = await sb.rpc("adjust_stock", { p_product: pid, p_store: sid, p_delta: delta }); if (error) throw error; }
+    const old = id ? product(id)?.photo_path : null;
+    if (S.photo.file) {
+      const blob = await shrink(S.photo.file), path = `${S.org.id}/${pid}-${Date.now()}.jpg`;
+      const up = await sb.storage.from("product-photos").upload(path, blob, { contentType: "image/jpeg", upsert: true });
+      if (up.error) throw up.error;
+      const { error } = await sb.from("products").update({ photo_path: path }).eq("id", pid); if (error) throw error;
+      if (old) sb.storage.from("product-photos").remove([old]);
+    } else if (S.photo.remove && old) {
+      const { error } = await sb.from("products").update({ photo_path: null }).eq("id", pid); if (error) throw error;
+      sb.storage.from("product-photos").remove([old]);
+    }
     closeSheet(); await loadAll(); render(); toast(id ? "Saved" : "Added");
-  } catch (e) { $("#f-err").textContent = errText(e); }
+  } catch (e) { $("#f-err").textContent = errText(e); btn.disabled = false; btn.textContent = "Save"; }
 }
 function closeSheet() { $("#sheetRoot").innerHTML = ""; S.sale = null; }
 
@@ -392,8 +430,9 @@ document.addEventListener("click", async (e) => {
     voidSale: () => voidSale(id, el), summary: copySummary,
     close: closeSheet, closeBg: closeSheet,
     askDel: () => ($("#delZone").innerHTML = `<div class="confirm">Delete it from every store? <button type="button" class="btn danger" data-act="doDel" data-id="${id}">Yes, delete</button></div>`),
-    doDel: async () => { const { error } = await sb.from("products").delete().eq("id", id);
-      if (error) return toast(errText(error)); closeSheet(); await loadAll(); render(); toast("Deleted"); },
+    rmPhoto: () => { S.photo = { file: null, remove: true }; $("#f-prev").innerHTML = thumb({ name: $("#f-name").value }, "thumb big"); $("#f-rm").hidden = true; $("#f-photo").value = ""; },
+    doDel: async () => { const old = product(id)?.photo_path; const { error } = await sb.from("products").delete().eq("id", id);
+      if (error) return toast(errText(error)); if (old) sb.storage.from("product-photos").remove([old]); closeSheet(); await loadAll(); render(); toast("Deleted"); },
   };
   actions[a]?.();
 });
