@@ -352,11 +352,15 @@ function openEdit(id) {
   $("#sheetRoot").innerHTML = `<div class="sheetbg" data-act="closeBg"><form class="sheet" id="pform" data-id="${id || ""}" novalidate>
     <h2>${id ? "Edit" : "Add to inventory"}</h2>
     <label>Name<input id="f-name" value="${esc(p.name)}" placeholder="Case iPhone 16"></label>
-    <div class="photoField"><div id="f-prev">${thumb(p, "thumb big")}</div>
-      <div class="stack" style="gap:4px;align-items:flex-start">
-        <label class="btn ghost filebtn">${p.photo_path ? "Change photo" : "Add photo (optional)"}<input id="f-photo" type="file" accept="image/*" hidden></label>
-        <button type="button" class="link" data-act="rmPhoto" id="f-rm" ${p.photo_path ? "" : "hidden"}>Remove photo</button>
-      </div></div>
+    <div class="photoBox"><span class="phlabel">Photo (optional)</span>
+      <div class="photoField"><div id="f-prev">${thumb(p, "thumb big")}</div>
+        <div class="photoBtns">
+          <label class="btn ghost filebtn">Take photo<input id="f-cam" type="file" accept="image/*" capture="environment" hidden></label>
+          <label class="btn ghost filebtn">Choose<input id="f-photo" type="file" accept="image/*" hidden></label>
+          <button type="button" class="btn ghost filebtn" data-act="pastePhoto">Paste</button>
+        </div></div>
+      <p class="muted" id="f-phint" style="font-size:13px">On a computer you can also press Ctrl+V (⌘V on Mac) to paste a copied image.</p>
+      <button type="button" class="link" data-act="rmPhoto" id="f-rm" ${p.photo_path ? "" : "hidden"}>Remove photo</button></div>
     <div class="grid2"><label>Cost (USD)<input id="f-cost" type="number" step="0.01" min="0" inputmode="decimal" value="${p.cost}"></label>
       <label>Stock at ${esc(sname)}<input id="f-stock" type="number" min="0" inputmode="numeric" value="${id ? qtyOf(id, S.storeId) : 0}"></label></div>
     <label>Alert when fewer than<input id="f-low" type="number" min="0" inputmode="numeric" value="${p.low_stock_threshold}"></label>
@@ -364,14 +368,34 @@ function openEdit(id) {
     <div class="foot">${id && isOwner() ? `<button type="button" class="btn ghost" data-act="askDel" data-id="${id}">Delete</button>` : ""}
       <span class="right"><button type="button" class="btn ghost" data-act="close">Cancel</button><button class="btn" type="submit">Save</button></span></div>
   </form></div>`;
-  $("#f-photo").addEventListener("change", (e) => {
-    const f = e.target.files?.[0]; if (!f) return;
-    S.photo = { file: f, remove: false };
-    $("#f-prev").innerHTML = `<img class="thumb big" src="${URL.createObjectURL(f)}" alt="">`;
-    $("#f-rm").hidden = false;
-  });
+  for (const i of ["#f-photo", "#f-cam"]) $(i).addEventListener("change", (e) => { const f = e.target.files?.[0]; if (f) setPhoto(f); e.target.value = ""; });
   if (!id) setTimeout(() => $("#f-name").focus(), 50);
 }
+function setPhoto(file) {
+  if (!$("#f-prev")) return;
+  S.photo = { file, remove: false };
+  $("#f-prev").innerHTML = `<img class="thumb big" src="${URL.createObjectURL(file)}" alt="">`;
+  $("#f-rm").hidden = false; $("#f-err").textContent = "";
+}
+/* "Paste" button: reads an image the person copied (phone or computer) */
+async function pastePhoto() {
+  try {
+    if (!navigator.clipboard?.read) throw new Error("unsupported");
+    for (const item of await navigator.clipboard.read()) {
+      const type = item.types.find((t) => t.startsWith("image/"));
+      if (type) { const blob = await item.getType(type); return setPhoto(new File([blob], "pasted." + type.split("/")[1], { type })); }
+    }
+    $("#f-err").textContent = "There's no image copied. Copy a photo first, then tap Paste.";
+  } catch (_) {
+    $("#f-err").textContent = "This browser can't read the clipboard from a button. Press Ctrl+V (⌘V) here, or use Take photo / Choose.";
+  }
+}
+/* Ctrl+V / ⌘V while the add/edit sheet is open */
+document.addEventListener("paste", (e) => {
+  if (!$("#f-prev")) return;
+  const f = [...(e.clipboardData?.files || [])].find((x) => x.type.startsWith("image/"));
+  if (f) { e.preventDefault(); setPhoto(f); }
+});
 /* make photos small before upload (max 480px, JPEG) so they load fast on phones */
 async function shrink(file) {
   let img = await createImageBitmap(file).catch(() => null);
@@ -430,7 +454,8 @@ document.addEventListener("click", async (e) => {
     voidSale: () => voidSale(id, el), summary: copySummary,
     close: closeSheet, closeBg: closeSheet,
     askDel: () => ($("#delZone").innerHTML = `<div class="confirm">Delete it from every store? <button type="button" class="btn danger" data-act="doDel" data-id="${id}">Yes, delete</button></div>`),
-    rmPhoto: () => { S.photo = { file: null, remove: true }; $("#f-prev").innerHTML = thumb({ name: $("#f-name").value }, "thumb big"); $("#f-rm").hidden = true; $("#f-photo").value = ""; },
+    rmPhoto: () => { S.photo = { file: null, remove: true }; $("#f-prev").innerHTML = thumb({ name: $("#f-name").value }, "thumb big"); $("#f-rm").hidden = true; },
+    pastePhoto,
     doDel: async () => { const old = product(id)?.photo_path; const { error } = await sb.from("products").delete().eq("id", id);
       if (error) return toast(errText(error)); if (old) sb.storage.from("product-photos").remove([old]); closeSheet(); await loadAll(); render(); toast("Deleted"); },
   };

@@ -126,3 +126,8 @@ textarea{font:inherit;font-size:15px;width:100%;min-height:160px;border:1px soli
 .photoField{display:flex;align-items:center;gap:14px}
 .filebtn{flex-direction:row;align-items:center;justify-content:center;font-size:15px;color:var(--ink);cursor:pointer;min-height:44px}
 .editlink{background:none;border:0;padding:0;color:var(--brand);font-weight:700;font-size:14px}
+.photoBox{display:flex;flex-direction:column;gap:8px}
+.phlabel{font-size:13px;font-weight:600;color:var(--muted)}
+.photoBtns{display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;min-width:0}
+.photoBtns .filebtn:first-child{grid-column:1/-1;background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.photoBtns .filebtn{padding:8px 10px;min-height:44px}
