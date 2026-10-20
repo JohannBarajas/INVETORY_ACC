@@ -117,8 +117,8 @@ function renderAuth(mode = "emp", msg = "") {
     $("#app").innerHTML = `
       <div><span class="eyebrow">Accessory Inventory</span><h1>Employee sign in</h1></div>
       <form class="card" id="empForm" novalidate>
-        <label>Employee ID<input id="e-id" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" placeholder="maria"></label>
-        <label>Code<input id="e-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••"></label>
+        <label>Sign-in ID<input id="e-id" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" placeholder="maria"></label>
+        <label>Code / PIN<input id="e-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••"></label>
         <p class="err" id="a-err" role="alert">${esc(msg)}</p>
         <button class="btn wide" type="submit">Sign in</button>
       </form>
@@ -293,15 +293,16 @@ async function renderEmployees() {
     <details class="card addemp" ${E.length ? "" : "open"}><summary><b>+ Add employee</b></summary>
       <form id="empAddForm" class="stack" novalidate>
         <label>Name<input id="n-name" placeholder="Maria Lopez"></label>
-        <div class="grid2"><label>ID<input id="n-id" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="maria"></label>
-        <label>Code (4–6 numbers)<input id="n-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="1234"></label></div>
+        <div class="grid2"><label>Sign-in ID (user)<input id="n-id" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="maria or 1010"></label>
+        <label>Code / PIN (4–6 numbers)<input id="n-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="1234"></label></div>
+        <p class="muted" style="font-size:13px">To sign in, the employee types the <b>Sign-in ID</b> and the <b>Code</b>.</p>
         <p class="err" id="n-err" role="alert"></p>
         <button class="btn" type="submit">Add employee</button></form></details>
     ${E.length ? E.map((e) => { const st = empStats(e); return `<div class="card empcard">
       <div class="emphead"><div style="min-width:0"><h3>${esc(e.name)}</h3></div>
         <span class="pill ${e.active ? "on" : "off"}">${e.active ? "Active" : "Access off"}</span></div>
       <dl class="facts">
-        <div><dt>ID</dt><dd class="num">${esc(e.login_id)}</dd></div>
+        <div><dt>Sign-in ID</dt><dd class="num">${esc(e.login_id)}</dd></div>
         <div><dt>Code</dt><dd class="num">•••• <span class="muted" style="font-family:var(--f-body);font-size:13px">(change in Edit)</span></dd></div>
         <div><dt>Added</dt><dd>${e.created_at ? new Date(e.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}</dd></div>
         <div><dt>Last sign-in</dt><dd>${"last_login_at" in e ? when(e.last_login_at) : "—"}</dd></div>
