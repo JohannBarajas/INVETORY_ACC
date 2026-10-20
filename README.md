@@ -32,6 +32,7 @@ supabase/004_catalog.sql    public customer catalog for projects set up before t
 supabase/005_employee_info.sql  last sign-in + sales per employee
 supabase/006_edit_employee.sql  owner edits name, sign-in ID, code and access
 supabase/007_show_codes.sql     owner can see employee codes in the app
+supabase/008_fix_duplicate_business.sql  merges an accidental second business; one business per owner
 ```
 
 ## Setup (one time)

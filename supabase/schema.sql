@@ -514,3 +514,38 @@ begin
     delete from members where employee_id = p_id;
   end if;
 end $$;
+
+-- ─────────────────────────── One business per owner ───────────────────────────
+-- From now on an owner can't create a second business by accident.
+create or replace function public.create_org(p_name text, p_stores text[], p_display_name text default '')
+returns uuid language plpgsql security definer set search_path = public as $$
+declare v_org uuid; s text;
+begin
+  if auth.uid() is null then raise exception 'Not signed in'; end if;
+  select org_id into v_org from members where user_id = auth.uid() and role = 'owner' order by created_at limit 1;
+  if v_org is not null then return v_org; end if;
+  insert into orgs (name) values (trim(p_name)) returning id into v_org;
+  insert into members (org_id, user_id, role, display_name) values (v_org, auth.uid(), 'owner', coalesce(p_display_name, ''));
+  foreach s in array p_stores loop
+    if length(trim(s)) > 0 then insert into stores (org_id, name) values (v_org, trim(s)); end if;
+  end loop;
+  return v_org;
+end $$;
+
+-- Employees always go into the owner's (single) business.
+create or replace function public.add_employee(p_login text, p_name text, p_pin text)
+returns uuid language plpgsql security definer set search_path = public, extensions as $$
+declare v_org uuid; v_id uuid; v_login text := lower(trim(p_login));
+begin
+  select org_id into v_org from members where user_id = auth.uid() and role = 'owner' order by created_at limit 1;
+  if v_org is null then raise exception 'Only the owner can add employees'; end if;
+  if length(trim(coalesce(p_name, ''))) = 0 then raise exception 'Enter the employee''s name'; end if;
+  if v_login !~ '^[a-z0-9._-]{3,20}$' then raise exception 'Sign-in ID must be 3–20 letters or numbers, no spaces'; end if;
+  if p_pin !~ '^[0-9]{4,6}$' then raise exception 'Code must be 4 to 6 numbers'; end if;
+  if exists (select 1 from employees where login_id = v_login) then raise exception 'That sign-in ID is taken. Try another.'; end if;
+  insert into employees (org_id, login_id, name, pin_hash, pin_code)
+  values (v_org, v_login, trim(p_name), crypt(p_pin, gen_salt('bf')), p_pin)
+  returning id into v_id;
+  return v_id;
+end $$;
+
