@@ -174,3 +174,4 @@ textarea{font:inherit;font-size:15px;width:100%;min-height:160px;border:1px soli
 .facts dd{margin:0;font-size:15px;overflow-wrap:anywhere}
 .danger-text{color:var(--bad)}
 @media (max-width:380px){.empsum{grid-template-columns:1fr 1fr}.empsum .sumbox:last-child{grid-column:1/-1}}
+.pin{font-size:18px;letter-spacing:.12em;background:var(--tag);color:var(--tag-ink);border-radius:6px;padding:0 8px}

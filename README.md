@@ -31,6 +31,7 @@ supabase/003_employees.sql  employee ID + code logins for projects set up before
 supabase/004_catalog.sql    public customer catalog for projects set up before that existed
 supabase/005_employee_info.sql  last sign-in + sales per employee
 supabase/006_edit_employee.sql  owner edits name, sign-in ID, code and access
+supabase/007_show_codes.sql     owner can see employee codes in the app
 ```
 
 ## Setup (one time)

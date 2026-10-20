@@ -64,8 +64,11 @@ async function loadAll() {
   S.people = new Map(mem.data.map((m) => [m.user_id, m.display_name]));
   if (S.storeId && !store(S.storeId)) setStore(null);
   if (S.member.role === "owner") {
-    let r = await sb.from("employees").select("id, login_id, name, active, created_at, last_login_at").eq("org_id", org).order("name");
-    if (r.error) r = await sb.from("employees").select("id, login_id, name, active, created_at").eq("org_id", org).order("name");
+    let r;
+    for (const cols of ["id, login_id, name, active, created_at, last_login_at, pin_code", "id, login_id, name, active, created_at, last_login_at", "id, login_id, name, active, created_at"]) {
+      r = await sb.from("employees").select(cols).eq("org_id", org).order("name");
+      if (!r.error) break;
+    }
     S.employees = r.data || []; S.empTableMissing = !!r.error;
   }
   await loadSales();
@@ -303,7 +306,7 @@ async function renderEmployees() {
         <span class="pill ${e.active ? "on" : "off"}">${e.active ? "Active" : "Access off"}</span></div>
       <dl class="facts">
         <div><dt>Sign-in ID</dt><dd class="num">${esc(e.login_id)}</dd></div>
-        <div><dt>Code</dt><dd class="num">•••• <span class="muted" style="font-family:var(--f-body);font-size:13px">(change in Edit)</span></dd></div>
+        <div><dt>Code / PIN</dt><dd class="num">${e.pin_code ? `<b class="pin">${esc(e.pin_code)}</b>` : `<span class="muted" style="font-family:var(--f-body);font-size:13px">Hidden — set it again in Edit to see it</span>`}</dd></div>
         <div><dt>Added</dt><dd>${e.created_at ? new Date(e.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}</dd></div>
         <div><dt>Last sign-in</dt><dd>${"last_login_at" in e ? when(e.last_login_at) : "—"}</dd></div>
         <div><dt>Sales today</dt><dd>${st.today.n} · ${money(st.today.t)}</dd></div>
@@ -312,7 +315,7 @@ async function renderEmployees() {
       <div class="grid2"><button class="btn ghost" data-act="editEmp" data-id="${e.id}">Edit</button>
         <button class="btn ghost danger-text" data-act="askDelEmpInline" data-id="${e.id}">Remove</button></div>
       <div id="del-${e.id}"></div></div>`; }).join("") : `<div class="empty">No employees yet. Add the first one above.</div>`}
-    <p class="muted" style="font-size:13px">Codes are saved locked, so nobody (not even the owner) can read them. If someone forgets theirs, give them a new one in Edit.</p>`}`;
+    <p class="muted" style="font-size:13px">Only you (the owner) can see employees' codes. Employees never see them.</p>`}`;
 }
 async function submitEmpAdd() {
   const name = $("#n-name").value.trim(), id = $("#n-id").value.trim().toLowerCase(), pin = $("#n-pin").value.trim();
@@ -330,7 +333,7 @@ function openEmp(id) {
     <h2>Edit employee</h2>
     <label>Name<input id="m-name" value="${esc(e.name)}"></label>
     <label>Sign-in ID (user)<input id="m-login" value="${esc(e.login_id)}" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
-    <label>Code / PIN — type a new one to change it<input id="m-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="•••• (leave empty to keep it)"></label>
+    <label>Code / PIN<input id="m-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" value="${esc(e.pin_code || "")}" placeholder="${e.pin_code ? "" : "Type a code (current one is hidden)"}"></label>
     <label class="check"><input id="m-active" type="checkbox" ${e.active ? "checked" : ""}> Can sign in</label>
     <p class="muted" style="font-size:13px">Changing the ID or code signs this employee out of their phone.</p>
     <p class="err" id="m-err" role="alert"></p><div id="delZone"></div>
@@ -340,7 +343,8 @@ function openEmp(id) {
 }
 async function submitEmpEdit(form) {
   const id = form.dataset.id, e = S.employees.find((x) => x.id === id);
-  const name = $("#m-name").value.trim(), login = $("#m-login").value.trim().toLowerCase(), pin = $("#m-pin").value.trim(), active = $("#m-active").checked;
+  const name = $("#m-name").value.trim(), login = $("#m-login").value.trim().toLowerCase(), active = $("#m-active").checked;
+  const typed = $("#m-pin").value.trim(), pin = typed && typed !== e.pin_code ? typed : "";
   if (!name) return ($("#m-err").textContent = "Enter the employee's name.");
   if (!/^[a-z0-9._-]{3,20}$/.test(login)) return ($("#m-err").textContent = "Sign-in ID: 3–20 letters or numbers, no spaces.");
   if (pin && !/^[0-9]{4,6}$/.test(pin)) return ($("#m-err").textContent = "Code: 4 to 6 numbers.");
