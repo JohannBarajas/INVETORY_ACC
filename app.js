@@ -466,8 +466,9 @@ function openEdit(id) {
       <p class="muted" id="f-phint" style="font-size:13px">On a computer you can also press Ctrl+V (⌘V on Mac) to paste a copied image.</p>
       <button type="button" class="link" data-act="rmPhoto" id="f-rm" ${p.photo_path ? "" : "hidden"}>Remove photo</button></div>
     <div class="grid2"><label>Cost (USD)<input id="f-cost" type="number" step="0.01" min="0" inputmode="decimal" value="${p.cost}"></label>
-      <label>Stock at ${esc(sname)}<input id="f-stock" type="number" min="0" inputmode="numeric" value="${id ? qtyOf(id, S.storeId) : 0}"></label></div>
-    <label>Alert when fewer than<input id="f-low" type="number" min="0" inputmode="numeric" value="${p.low_stock_threshold}"></label>
+      <label>Sale price (USD)<input id="f-price" type="number" step="0.01" min="0" inputmode="decimal" value="${p.price ?? ""}" placeholder="Shown to customers"></label></div>
+    <div class="grid2"><label>Stock at ${esc(sname)}<input id="f-stock" type="number" min="0" inputmode="numeric" value="${id ? qtyOf(id, S.storeId) : 0}"></label>
+      <label>Alert when fewer than<input id="f-low" type="number" min="0" inputmode="numeric" value="${p.low_stock_threshold}"></label></div>
     <p class="err" id="f-err" role="alert"></p><div id="delZone"></div>
     <div class="foot">${id && isOwner() ? `<button type="button" class="btn ghost" data-act="askDel" data-id="${id}">Delete</button>` : ""}
       <span class="right"><button type="button" class="btn ghost" data-act="close">Cancel</button><button class="btn" type="submit">Save</button></span></div>
@@ -512,7 +513,9 @@ async function shrink(file) {
 async function submitEdit(form) {
   const id = form.dataset.id, sid = S.storeId, name = $("#f-name").value.trim();
   if (!name) return ($("#f-err").textContent = "Enter a name, for example: Case iPhone 16.");
-  const fields = { name, cost: parseFloat($("#f-cost").value) || 0, low_stock_threshold: parseInt($("#f-low").value, 10) || 0 };
+  const priceTxt = $("#f-price").value.trim();
+  const fields = { name, cost: parseFloat($("#f-cost").value) || 0, price: priceTxt === "" ? null : parseFloat(priceTxt) || 0,
+    low_stock_threshold: parseInt($("#f-low").value, 10) || 0 };
   const want = parseInt($("#f-stock").value, 10) || 0;
   const btn = form.querySelector("[type=submit]"); btn.disabled = true; btn.textContent = "Saving…";
   try {
