@@ -11,7 +11,7 @@ One owner, several stores, several employees. Every sale comes off the shelf aut
 - **Reorder alert:** anything below its alert level (3 by default) shows in a red box at the top.
 - **Today's sales:** total for the store, who sold what, **Void** to undo a mistake (units go back to stock).
 - **Day summary:** one tap copies a summary to paste into the owner's WhatsApp group.
-- **Logins:** the owner signs in with email. In **Settings → Employees** the owner adds each employee with just a **name, ID and 4–6 digit code**; employees sign in with ID + code (no email). 5 wrong codes lock the ID for 15 minutes. Each business only sees its own data.
+- **Logins:** the owner signs in with email. In **Settings → Employees** the owner adds each employee with just a **name, ID and 4–6 digit code**; employees sign in with ID + code (no email). 5 wrong codes lock the ID for 15 minutes. The **Employees** page shows each employee's ID, status, date added, last sign-in and sales (today / 7 days), with Add, Edit and Remove. Each business only sees its own data.
 - **Photos (optional):** add a thumbnail to any accessory by taking it with the camera, choosing it from the gallery, or pasting a copied image. Photos are shrunk before upload.
 - **Customer catalog:** a public page (no login) with photo, name, price and Available / Sold out — never units or cost. The owner shares it from **Settings → Customer catalog**; staff tap **Staff sign in** to see everything.
 - **Live:** every phone sees changes without refreshing.
@@ -29,6 +29,7 @@ supabase/schema.sql   tables, security rules, sale/stock functions, photo storag
 supabase/002_photos.sql  photo update for projects set up before photos existed
 supabase/003_employees.sql  employee ID + code logins for projects set up before that existed
 supabase/004_catalog.sql    public customer catalog for projects set up before that existed
+supabase/005_employee_info.sql  last sign-in + sales per employee
 ```
 
 ## Setup (one time)

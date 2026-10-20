@@ -86,7 +86,7 @@ begin
     raise exception 'Too many tries. Wait % minutes or ask the owner.', ceil(extract(epoch from e.locked_until - now()) / 60);
   end if;
   if e.pin_hash <> crypt(coalesce(p_pin, ''), e.pin_hash) then
-    update employees set failed = failed + 1,
+    update employees set
       locked_until = case when failed + 1 >= 5 then now() + interval '15 minutes' else null end,
       failed = case when failed + 1 >= 5 then 0 else failed + 1 end
     where id = e.id;

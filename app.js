@@ -64,8 +64,9 @@ async function loadAll() {
   S.people = new Map(mem.data.map((m) => [m.user_id, m.display_name]));
   if (S.storeId && !store(S.storeId)) setStore(null);
   if (S.member.role === "owner") {
-    const { data, error } = await sb.from("employees").select("id, login_id, name, active").eq("org_id", org).order("name");
-    S.employees = data || []; S.empTableMissing = !!error;
+    let r = await sb.from("employees").select("id, login_id, name, active, created_at, last_login_at").eq("org_id", org).order("name");
+    if (r.error) r = await sb.from("employees").select("id, login_id, name, active, created_at").eq("org_id", org).order("name");
+    S.employees = r.data || []; S.empTableMissing = !!r.error;
   }
   await loadSales();
 }
@@ -79,7 +80,7 @@ function listenLive() {
   if (S.channel) sb.removeChannel(S.channel);
   const f = `org_id=eq.${S.org.id}`;
   let t;
-  const refresh = () => { clearTimeout(t); t = setTimeout(async () => { try { await loadAll(); if (S.view !== "settings") render(); } catch (_) {} }, 400); };
+  const refresh = () => { clearTimeout(t); t = setTimeout(async () => { try { await loadAll(); if (S.view !== "settings" && S.view !== "employees") render(); } catch (_) {} }, 400); };
   S.channel = sb.channel("org-" + S.org.id)
     .on("postgres_changes", { event: "*", schema: "public", table: "inventory", filter: f }, refresh)
     .on("postgres_changes", { event: "*", schema: "public", table: "products", filter: f }, refresh)
@@ -105,6 +106,7 @@ async function route() {
 }
 function render() {
   if (S.view === "settings") return renderSettings();
+  if (S.view === "employees") return renderEmployees();
   if (!S.storeId) return renderPicker();
   renderStore();
 }
@@ -246,18 +248,7 @@ function renderSettings() {
   $("#app").innerHTML = `
     <div class="line" style="display:flex;justify-content:space-between;align-items:center"><h1>${isOwner() ? "Settings" : "Account"}</h1><button class="link" data-act="back">Done</button></div>
     ${isOwner() ? `
-    <div class="card"><h3>Employees</h3>
-      <p class="muted">Employees sign in with their ID and code. No email needed.</p>
-      ${S.empTableMissing ? `<p class="err">Run supabase/003_employees.sql in Supabase to turn this on.</p>` : `
-      <div class="emplist">${S.employees.length ? S.employees.map((e) => `<div class="emp"><div style="min-width:0"><b>${esc(e.name)}</b>
-        <div class="muted" style="font-size:14px">ID <span class="num">${esc(e.login_id)}</span>${e.active ? "" : " · <span style='color:var(--bad)'>access off</span>"}</div></div>
-        <button class="link" data-act="editEmp" data-id="${e.id}">Edit</button></div>`).join("") : `<div class="muted">No employees yet.</div>`}</div>
-      <form id="empAddForm" class="stack" novalidate><h3>Add employee</h3>
-        <label>Name<input id="n-name" placeholder="Maria Lopez"></label>
-        <div class="grid2"><label>ID<input id="n-id" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="maria"></label>
-        <label>Code (4–6 numbers)<input id="n-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="1234"></label></div>
-        <p class="err" id="n-err" role="alert"></p>
-        <button class="btn" type="submit">Add employee</button></form>`}</div>
+    <button class="store" data-act="employees"><span><b>Employees</b><span class="sub">${S.empTableMissing ? "Run 003_employees.sql to turn this on" : `${S.employees.length} ${S.employees.length === 1 ? "employee" : "employees"} · add, edit, remove`}</span></span><span class="arrow">→</span></button>
     <form class="card" id="storesForm" novalidate><h3>Stores</h3>
       ${S.stores.map((s) => `<label>Store<input data-sid="${s.id}" value="${esc(s.name)}"></label>`).join("")}
       <label>Add a store<input id="newStore" placeholder="New store address"></label>
@@ -270,6 +261,58 @@ function renderSettings() {
       : `<div class="card"><h3>Customer catalog</h3><p class="err">Run supabase/004_catalog.sql in Supabase to turn this on.</p></div>`) : ""}
     <div class="card"><p class="muted">Signed in as ${esc(S.session.user.email || S.member.display_name)}</p><button class="btn ghost" data-act="signOut">Sign out</button></div>`;
 }
+/* ───────────── employees (owner) ───────────── */
+async function loadEmpStats() {
+  const since = new Date(Date.now() - 7 * 864e5).toISOString();
+  let r = await sb.from("sales").select("employee_id, seller_name, qty, unit_price, created_at").eq("org_id", S.org.id).gte("created_at", since);
+  if (r.error) r = await sb.from("sales").select("seller_name, qty, unit_price, created_at").eq("org_id", S.org.id).gte("created_at", since);
+  S.empSales = r.data || [];
+}
+function empStats(e) {
+  const today = startOfToday();
+  const mine = S.empSales.filter((x) => x.employee_id ? x.employee_id === e.id : x.seller_name === e.name);
+  const sum = (arr) => ({ n: arr.reduce((a, x) => a + x.qty, 0), t: arr.reduce((a, x) => a + x.qty * x.unit_price, 0) });
+  return { week: sum(mine), today: sum(mine.filter((x) => x.created_at >= today)) };
+}
+function when(iso) {
+  if (!iso) return "Never";
+  const d = new Date(iso), t = new Date(); t.setHours(0, 0, 0, 0);
+  const day = d >= t ? "Today" : d >= new Date(t - 864e5) ? "Yesterday" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${day}, ${time(iso)}`;
+}
+async function renderEmployees() {
+  $("#bar").hidden = true;
+  if (!S.empSales) { $("#app").innerHTML = `<div class="empty">Loading…</div>`; await loadEmpStats(); if (S.view !== "employees") return; }
+  const E = S.employees, active = E.filter((e) => e.active).length;
+  const team = E.reduce((a, e) => { const st = empStats(e).week; return { n: a.n + st.n, t: a.t + st.t }; }, { n: 0, t: 0 });
+  $("#app").innerHTML = `
+    <div class="line" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h1>Employees</h1><button class="link" data-act="back">Done</button></div>
+    ${S.empTableMissing ? `<div class="card"><p class="err">Run supabase/003_employees.sql in Supabase to turn this on.</p></div>` : `
+    <div class="empsum"><div class="sumbox"><span>Employees</span><b>${E.length}</b></div><div class="sumbox"><span>Can sign in</span><b>${active}</b></div>
+      <div class="sumbox"><span>Team sales · 7 days</span><b>${money(team.t)}</b></div></div>
+    <details class="card addemp" ${E.length ? "" : "open"}><summary><b>+ Add employee</b></summary>
+      <form id="empAddForm" class="stack" novalidate>
+        <label>Name<input id="n-name" placeholder="Maria Lopez"></label>
+        <div class="grid2"><label>ID<input id="n-id" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="maria"></label>
+        <label>Code (4–6 numbers)<input id="n-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="1234"></label></div>
+        <p class="err" id="n-err" role="alert"></p>
+        <button class="btn" type="submit">Add employee</button></form></details>
+    ${E.length ? E.map((e) => { const st = empStats(e); return `<div class="card empcard">
+      <div class="emphead"><div style="min-width:0"><h3>${esc(e.name)}</h3></div>
+        <span class="pill ${e.active ? "on" : "off"}">${e.active ? "Active" : "Access off"}</span></div>
+      <dl class="facts">
+        <div><dt>ID</dt><dd class="num">${esc(e.login_id)}</dd></div>
+        <div><dt>Code</dt><dd class="num">•••• <span class="muted" style="font-family:var(--f-body);font-size:13px">(change in Edit)</span></dd></div>
+        <div><dt>Added</dt><dd>${e.created_at ? new Date(e.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}</dd></div>
+        <div><dt>Last sign-in</dt><dd>${"last_login_at" in e ? when(e.last_login_at) : "—"}</dd></div>
+        <div><dt>Sales today</dt><dd>${st.today.n} · ${money(st.today.t)}</dd></div>
+        <div><dt>Sales 7 days</dt><dd>${st.week.n} · ${money(st.week.t)}</dd></div>
+      </dl>
+      <div class="grid2"><button class="btn ghost" data-act="editEmp" data-id="${e.id}">Edit</button>
+        <button class="btn ghost danger-text" data-act="askDelEmpInline" data-id="${e.id}">Remove</button></div>
+      <div id="del-${e.id}"></div></div>`; }).join("") : `<div class="empty">No employees yet. Add the first one above.</div>`}
+    <p class="muted" style="font-size:13px">Codes are saved locked, so nobody (not even the owner) can read them. If someone forgets theirs, give them a new one in Edit.</p>`}`;
+}
 async function submitEmpAdd() {
   const name = $("#n-name").value.trim(), id = $("#n-id").value.trim().toLowerCase(), pin = $("#n-pin").value.trim();
   if (!name) return ($("#n-err").textContent = "Enter the employee's name.");
@@ -277,7 +320,7 @@ async function submitEmpAdd() {
   if (!/^[0-9]{4,6}$/.test(pin)) return ($("#n-err").textContent = "Code: 4 to 6 numbers.");
   const { error } = await sb.rpc("add_employee", { p_login: id, p_name: name, p_pin: pin });
   if (error) return ($("#n-err").textContent = errText(error));
-  await loadAll(); renderSettings();
+  await loadAll(); render();
   toast(`${name} can now sign in with ID ${id} and code ${pin}`);
 }
 function openEmp(id) {
@@ -297,7 +340,7 @@ async function submitEmpEdit(form) {
   if (pin && !/^[0-9]{4,6}$/.test(pin)) return ($("#m-err").textContent = "Code: 4 to 6 numbers.");
   const { error } = await sb.rpc("update_employee", { p_id: form.dataset.id, p_name: $("#m-name").value.trim(), p_pin: pin || null, p_active: $("#m-active").checked });
   if (error) return ($("#m-err").textContent = errText(error));
-  closeSheet(); await loadAll(); renderSettings(); toast(pin ? `Saved. New code: ${pin}` : "Saved");
+  closeSheet(); await loadAll(); render(); toast(pin ? `Saved. New code: ${pin}` : "Saved");
 }
 async function submitStores() {
   try {
@@ -317,7 +360,7 @@ function renderStore() {
   if (!$("#q")) {
     $("#app").innerHTML = `
       <div class="head"><div class="line"><div><span class="eyebrow">You're at</span><h2 id="storeName"></h2></div>
-        <div class="headlinks">${isOwner() ? `<button class="link" data-act="settings">⚙ Employees</button>` : ""}<button class="link" data-act="changeStore">Change store</button><button class="link logout" data-act="signOut">Log out</button></div></div>
+        <div class="headlinks">${isOwner() ? `<button class="link" data-act="employees">⚙ Employees</button>` : ""}<button class="link" data-act="changeStore">Change store</button><button class="link logout" data-act="signOut">Log out</button></div></div>
         <input id="q" type="search" placeholder="Search: case 16, cable…" autocomplete="off"></div>
       <div id="lowBox"></div>
       <details class="today" id="today"><summary id="todaySum"></summary><div id="todayList"></div></details>
@@ -556,7 +599,10 @@ document.addEventListener("click", async (e) => {
     editEmp: () => openEmp(id),
     askDelEmp: () => ($("#delZone").innerHTML = `<div class="confirm">Remove this employee? Their past sales stay. <button type="button" class="btn danger" data-act="doDelEmp" data-id="${id}">Yes, remove</button></div>`),
     doDelEmp: async () => { const { error } = await sb.rpc("delete_employee", { p_id: id }); if (error) return toast(errText(error));
-      closeSheet(); await loadAll(); renderSettings(); toast("Employee removed"); },
+      closeSheet(); await loadAll(); render(); toast("Employee removed"); },
+    askDelEmpInline: () => ($(`#del-${id}`).innerHTML = `<div class="confirm">Remove ${esc(S.employees.find((x) => x.id === id)?.name || "")}? They can't sign in anymore. Past sales stay. <button type="button" class="btn danger" data-act="doDelEmp" data-id="${id}">Yes, remove</button> <button type="button" class="btn ghost" data-act="cancelDel" data-id="${id}">Cancel</button></div>`),
+    cancelDel: () => ($(`#del-${id}`).innerHTML = ""),
+    employees: () => { S.view = "employees"; S.empSales = null; $("#app").innerHTML = ""; render(); scrollTo(0, 0); },
     signOut: async () => { if (S.channel) { sb.removeChannel(S.channel); S.channel = null; }
       setStore(null); S.view = "main"; S.member = null; S.org = null; closeSheet(); $("#bar").hidden = true;
       await sb.auth.signOut(); toast("Logged out"); },
