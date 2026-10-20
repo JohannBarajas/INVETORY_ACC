@@ -44,7 +44,7 @@ function setStore(id) {
 /* ───────────── data ───────────── */
 async function loadMembership() {
   const { data, error } = await sb.from("members").select("org_id, role, display_name, orgs(*)")
-    .eq("user_id", S.session.user.id).limit(1);
+    .eq("user_id", S.session.user.id).order("created_at", { ascending: true }).limit(1);
   if (error) throw error;
   S.member = data?.[0] || null;
   S.org = S.member?.orgs || null;
@@ -227,8 +227,12 @@ async function submitOrg() {
   const stores = [...document.querySelectorAll(".o-store")].map((i) => i.value.trim()).filter(Boolean);
   if (!name) return ($("#o-err").textContent = "Enter the business name.");
   if (!stores.length) return ($("#o-err").textContent = "Add at least one store.");
+  if (S.creatingOrg) return;                       // ignore double taps
+  S.creatingOrg = true;
+  const btn = $("#orgForm [type=submit]"); btn.disabled = true; btn.textContent = "Creating…";
   const { error } = await sb.rpc("create_org", { p_name: name, p_stores: stores, p_display_name: you });
-  if (error) return ($("#o-err").textContent = errText(error));
+  S.creatingOrg = false;
+  if (error) { btn.disabled = false; btn.textContent = "Create"; return ($("#o-err").textContent = errText(error)); }
   route();
 }
 
