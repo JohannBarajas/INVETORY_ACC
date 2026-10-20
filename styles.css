@@ -154,3 +154,4 @@ textarea{font:inherit;font-size:15px;width:100%;min-height:160px;border:1px soli
 .citem.out{opacity:.6}
 .citem.out .avail{color:var(--bad)}
 .linkbox{background:var(--soft);border-radius:12px;padding:10px 12px;font-size:13px;overflow-wrap:anywhere}
+.logout{color:var(--bad)}

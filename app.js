@@ -238,7 +238,8 @@ function renderPicker() {
       <button class="store" data-store="${s.id}"><span><b>${esc(s.name)}</b>
       <span class="sub">${units(s.id)} units${low(s.id) ? ` · <span style="color:var(--bad)">${low(s.id)} to reorder</span>` : ""}</span></span><span class="arrow">→</span></button>`).join("")}
     </div>
-    <button class="link" data-act="settings">${isOwner() ? "Settings, employees and store names" : "Account"}</button>`;
+    <button class="link" data-act="settings">${isOwner() ? "Settings, employees and store names" : "Account"}</button>
+    <button class="btn ghost wide" data-act="signOut">Log out${S.member?.display_name ? " (" + esc(S.member.display_name) + ")" : ""}</button>`;
 }
 function renderSettings() {
   $("#bar").hidden = true;
@@ -316,7 +317,7 @@ function renderStore() {
   if (!$("#q")) {
     $("#app").innerHTML = `
       <div class="head"><div class="line"><div><span class="eyebrow">You're at</span><h2 id="storeName"></h2></div>
-        <div class="headlinks">${isOwner() ? `<button class="link" data-act="settings">⚙ Employees</button>` : ""}<button class="link" data-act="changeStore">Change store</button></div></div>
+        <div class="headlinks">${isOwner() ? `<button class="link" data-act="settings">⚙ Employees</button>` : ""}<button class="link" data-act="changeStore">Change store</button><button class="link logout" data-act="signOut">Log out</button></div></div>
         <input id="q" type="search" placeholder="Search: case 16, cable…" autocomplete="off"></div>
       <div id="lowBox"></div>
       <details class="today" id="today"><summary id="todaySum"></summary><div id="todayList"></div></details>
@@ -556,7 +557,9 @@ document.addEventListener("click", async (e) => {
     askDelEmp: () => ($("#delZone").innerHTML = `<div class="confirm">Remove this employee? Their past sales stay. <button type="button" class="btn danger" data-act="doDelEmp" data-id="${id}">Yes, remove</button></div>`),
     doDelEmp: async () => { const { error } = await sb.rpc("delete_employee", { p_id: id }); if (error) return toast(errText(error));
       closeSheet(); await loadAll(); renderSettings(); toast("Employee removed"); },
-    signOut: async () => { await sb.auth.signOut(); setStore(null); S.view = "main"; },
+    signOut: async () => { if (S.channel) { sb.removeChannel(S.channel); S.channel = null; }
+      setStore(null); S.view = "main"; S.member = null; S.org = null; closeSheet(); $("#bar").hidden = true;
+      await sb.auth.signOut(); toast("Logged out"); },
     addStoreField: () => { const n = document.querySelectorAll(".o-store").length + 1;
       $("#o-stores").insertAdjacentHTML("beforeend", `<label>Store ${n}<input class="o-store"></label>`); },
     settings: () => { S.view = "settings"; $("#app").innerHTML = ""; render(); scrollTo(0, 0); }, back: () => { S.view = "main"; $("#app").innerHTML = ""; render(); },
