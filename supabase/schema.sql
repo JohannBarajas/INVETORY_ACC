@@ -234,6 +234,9 @@ begin
   return public.is_member(v_org);
 end $$;
 
+drop policy if exists product_photos_select on storage.objects;
+create policy product_photos_select on storage.objects for select to authenticated
+  using (bucket_id = 'product-photos' and public.photo_org_ok(name));
 drop policy if exists product_photos_insert on storage.objects;
 create policy product_photos_insert on storage.objects for insert to authenticated
   with check (bucket_id = 'product-photos' and public.photo_org_ok(name));

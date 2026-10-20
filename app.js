@@ -488,7 +488,7 @@ async function submitEdit(form) {
     const old = id ? product(id)?.photo_path : null;
     if (S.photo.file) {
       const blob = await shrink(S.photo.file), path = `${S.org.id}/${pid}-${Date.now()}.jpg`;
-      const up = await sb.storage.from("product-photos").upload(path, blob, { contentType: "image/jpeg", upsert: true });
+      const up = await sb.storage.from("product-photos").upload(path, blob, { contentType: "image/jpeg", upsert: false });
       if (up.error) throw up.error;
       const { error } = await sb.from("products").update({ photo_path: path }).eq("id", pid); if (error) throw error;
       if (old) sb.storage.from("product-photos").remove([old]);
