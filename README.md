@@ -29,7 +29,7 @@ supabase/schema.sql   tables, security rules, sale/stock functions
 ## Setup (one time)
 
 1. **Database** — Supabase → your project → **SQL Editor** → New query → paste all of `supabase/schema.sql` → **Run**.
-2. **Keys** — Supabase → **Project Settings → API**. Copy **Project URL** and the **anon public** key into `config.js`.
+2. **Keys** — Supabase → **Project Settings → API**. Copy **Project URL** and the **publishable** (or anon) key into `config.js`.
 3. **Email confirmation (optional)** — Supabase → **Authentication → Sign In / Providers → Email**. Turn off "Confirm email" while testing so new accounts can sign in right away. Turn it back on before real customers use it.
 4. **Publish** — on [Vercel](https://vercel.com) or [Netlify](https://netlify.com): *Add new project → Import* this GitHub repo → no build command, output folder is the repo root → Deploy.
 5. Open the site on your phone → **Create account** → **I own the stores** → enter the business and store names.
