@@ -131,3 +131,9 @@ textarea{font:inherit;font-size:15px;width:100%;min-height:160px;border:1px soli
 .photoBtns{display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;min-width:0}
 .photoBtns .filebtn:first-child{grid-column:1/-1;background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
 .photoBtns .filebtn{padding:8px 10px;min-height:44px}
+.emplist{display:flex;flex-direction:column}
+.emp{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.emp:first-child{border-top:0}
+.check{flex-direction:row;align-items:center;gap:10px;font-size:16px;color:var(--ink)}
+.check input{width:22px;height:22px;min-height:0}
+#empAddForm{border-top:1px solid var(--line);padding-top:12px}

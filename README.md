@@ -11,7 +11,7 @@ One owner, several stores, several employees. Every sale comes off the shelf aut
 - **Reorder alert:** anything below its alert level (3 by default) shows in a red box at the top.
 - **Today's sales:** total for the store, who sold what, **Void** to undo a mistake (units go back to stock).
 - **Day summary:** one tap copies a summary to paste into the owner's WhatsApp group.
-- **Logins:** the owner creates the business and gets a 6-character code; employees sign up and join with it. Each business only sees its own data.
+- **Logins:** the owner signs in with email. In **Settings → Employees** the owner adds each employee with just a **name, ID and 4–6 digit code**; employees sign in with ID + code (no email). 5 wrong codes lock the ID for 15 minutes. Each business only sees its own data.
 - **Photos (optional):** add a thumbnail to any accessory by taking it with the camera, choosing it from the gallery, or pasting a copied image. Photos are shrunk before upload.
 - **Live:** every phone sees changes without refreshing.
 
@@ -26,15 +26,17 @@ app.js                the app
 config.js             your Supabase URL + anon key  ← edit this
 supabase/schema.sql   tables, security rules, sale/stock functions, photo storage
 supabase/002_photos.sql  photo update for projects set up before photos existed
+supabase/003_employees.sql  employee ID + code logins for projects set up before that existed
 ```
 
 ## Setup (one time)
 
 1. **Database** — Supabase → your project → **SQL Editor** → New query → paste all of `supabase/schema.sql` → **Run**.
 2. **Keys** — Supabase → **Project Settings → API**. Copy **Project URL** and the **publishable** (or anon) key into `config.js`.
-3. **Email confirmation (optional)** — Supabase → **Authentication → Sign In / Providers → Email**. Turn off "Confirm email" while testing so new accounts can sign in right away. Turn it back on before real customers use it.
-4. **Publish** — on [Vercel](https://vercel.com) or [Netlify](https://netlify.com): *Add new project → Import* this GitHub repo → no build command, output folder is the repo root → Deploy.
-5. Open the site on your phone → **Create account** → **I own the stores** → enter the business and store names.
+3. **Employee logins** — Supabase → **Authentication → Sign In / Providers** → turn on **Allow anonymous sign-ins** (employees sign in with ID + code on top of a guest session).
+4. **Email confirmation (optional)** — Supabase → **Authentication → Sign In / Providers → Email**. Turn off "Confirm email" while testing so new accounts can sign in right away. Turn it back on before real customers use it.
+5. **Publish** — on [Vercel](https://vercel.com) or [Netlify](https://netlify.com): *Add new project → Import* this GitHub repo → no build command, output folder is the repo root → Deploy.
+6. Open the site on your phone → **Create account** → **I own the stores** → enter the business and store names.
    On iPhone: Share → **Add to Home Screen** so it opens like an app.
 
 ## Run locally

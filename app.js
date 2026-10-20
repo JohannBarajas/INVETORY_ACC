@@ -9,6 +9,7 @@ const S = {
   stores: [], products: [], inv: new Map(), sales: [], people: new Map(),
   storeId: null, q: "", view: "loading",
   pending: new Map(), timers: new Map(), sale: null, channel: null,
+  employees: [], empTableMissing: false, busyLogin: false,
 };
 try { S.storeId = localStorage.getItem("storeId"); } catch (_) {}
 
@@ -58,6 +59,10 @@ async function loadAll() {
   S.inv = new Map(inv.data.map((r) => [key(r.product_id, r.store_id), r.qty]));
   S.people = new Map(mem.data.map((m) => [m.user_id, m.display_name]));
   if (S.storeId && !store(S.storeId)) setStore(null);
+  if (S.member.role === "owner") {
+    const { data, error } = await sb.from("employees").select("id, login_id, name, active").eq("org_id", org).order("name");
+    S.employees = data || []; S.empTableMissing = !!error;
+  }
   await loadSales();
 }
 async function loadSales() {
@@ -84,6 +89,7 @@ async function route() {
   if (!S.session) return renderAuth();
   try {
     await loadMembership();
+    if (!S.member && S.session.user.is_anonymous) { await sb.auth.signOut(); return renderAuth("emp", "Your access changed. Sign in again."); }
     if (!S.member) return renderOnboarding();
     await loadAll();
     listenLive();
@@ -100,16 +106,29 @@ function render() {
 }
 
 /* ───────────── sign in ───────────── */
-function renderAuth(mode = "in", msg = "") {
+function renderAuth(mode = "emp", msg = "") {
+  if (mode === "emp") {
+    $("#app").innerHTML = `
+      <div><span class="eyebrow">Accessory Inventory</span><h1>Employee sign in</h1></div>
+      <form class="card" id="empForm" novalidate>
+        <label>Employee ID<input id="e-id" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" placeholder="maria"></label>
+        <label>Code<input id="e-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••"></label>
+        <p class="err" id="a-err" role="alert">${esc(msg)}</p>
+        <button class="btn wide" type="submit">Sign in</button>
+      </form>
+      <button class="link" data-act="toSignIn">I'm the owner</button>`;
+    return;
+  }
   $("#app").innerHTML = `
-    <div><span class="eyebrow">Accessory Inventory</span><h1>${mode === "in" ? "Sign in" : "Create your account"}</h1></div>
+    <div><span class="eyebrow">Owner</span><h1>${mode === "in" ? "Owner sign in" : "Create owner account"}</h1></div>
     <form class="card" id="authForm" data-mode="${mode}" novalidate>
       <label>Email<input id="a-email" type="email" autocomplete="email" inputmode="email" required></label>
       <label>Password<input id="a-pass" type="password" autocomplete="${mode === "in" ? "current-password" : "new-password"}" minlength="6" required></label>
       <p class="err" id="a-err" role="alert">${esc(msg)}</p>
       <button class="btn wide" type="submit">${mode === "in" ? "Sign in" : "Create account"}</button>
     </form>
-    <button class="link" data-act="${mode === "in" ? "toSignUp" : "toSignIn"}">${mode === "in" ? "New here? Create an account" : "Already have an account? Sign in"}</button>`;
+    <button class="link" data-act="${mode === "in" ? "toSignUp" : "toSignIn"}">${mode === "in" ? "New owner? Create an account" : "Already have an account? Sign in"}</button>
+    <button class="link" data-act="toEmp">Employee? Sign in with ID and code</button>`;
 }
 async function submitAuth(form) {
   const email = $("#a-email").value.trim(), password = $("#a-pass").value, mode = form.dataset.mode;
@@ -121,6 +140,23 @@ async function submitAuth(form) {
   form.querySelector("[type=submit]").disabled = false;
   if (error) { $("#a-err").textContent = error.message; return; }
   if (mode === "up" && !data.session) renderAuth("in", "Check your email and tap the confirmation link, then sign in.");
+}
+async function submitEmp(form) {
+  const id = $("#e-id").value.trim(), pin = $("#e-pin").value.trim();
+  if (!id || !pin) { $("#a-err").textContent = "Enter your ID and code."; return; }
+  const btn = form.querySelector("[type=submit]"); btn.disabled = true; btn.textContent = "Signing in…";
+  S.busyLogin = true;
+  try {
+    if (!S.session) { const { data, error } = await sb.auth.signInAnonymously(); if (error) throw error; S.session = data.session; }
+    const { error } = await sb.rpc("employee_login", { p_login: id, p_pin: pin });
+    if (error) { await sb.auth.signOut(); S.session = null; throw error; }
+    S.busyLogin = false; $("#app").innerHTML = ""; route();
+  } catch (e) {
+    S.busyLogin = false;
+    const m = errText(e);
+    $("#a-err").textContent = /anonymous/i.test(m) ? "Employee sign in is off. The owner must turn on anonymous sign-ins in Supabase." : m;
+    btn.disabled = false; btn.textContent = "Sign in";
+  }
 }
 
 /* ───────────── first-time setup ───────────── */
@@ -139,14 +175,7 @@ function renderOnboarding() {
       <p class="err" id="o-err" role="alert"></p>
       <button class="btn wide" type="submit">Create</button>
     </form>
-    <form class="card" id="joinForm" novalidate>
-      <h3>I work at a store</h3>
-      <p class="muted">Ask the owner for the 6-character code.</p>
-      <div class="grid2"><label>Code<input id="j-code" autocapitalize="characters" maxlength="6" placeholder="A1B2C3"></label>
-      <label>Your name<input id="j-you" placeholder="Maria"></label></div>
-      <p class="err" id="j-err" role="alert"></p>
-      <button class="btn wide" type="submit">Join</button>
-    </form>
+    <p class="muted">Employees don't need an account: the owner creates their ID and code in Settings.</p>
     <button class="link" data-act="signOut">Sign out</button>`;
 }
 async function submitOrg() {
@@ -185,14 +214,53 @@ function renderSettings() {
   $("#app").innerHTML = `
     <div class="line" style="display:flex;justify-content:space-between;align-items:center"><h1>${isOwner() ? "Settings" : "Account"}</h1><button class="link" data-act="back">Done</button></div>
     ${isOwner() ? `
-    <div class="card"><h3>Employee code</h3><p class="muted">Employees create an account, choose “I work at a store” and type this code.</p>
-      <div class="code">${esc(S.org.join_code)}</div></div>
+    <div class="card"><h3>Employees</h3>
+      <p class="muted">Employees sign in with their ID and code. No email needed.</p>
+      ${S.empTableMissing ? `<p class="err">Run supabase/003_employees.sql in Supabase to turn this on.</p>` : `
+      <div class="emplist">${S.employees.length ? S.employees.map((e) => `<div class="emp"><div style="min-width:0"><b>${esc(e.name)}</b>
+        <div class="muted" style="font-size:14px">ID <span class="num">${esc(e.login_id)}</span>${e.active ? "" : " · <span style='color:var(--bad)'>access off</span>"}</div></div>
+        <button class="link" data-act="editEmp" data-id="${e.id}">Edit</button></div>`).join("") : `<div class="muted">No employees yet.</div>`}</div>
+      <form id="empAddForm" class="stack" novalidate><h3>Add employee</h3>
+        <label>Name<input id="n-name" placeholder="Maria Lopez"></label>
+        <div class="grid2"><label>ID<input id="n-id" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="maria"></label>
+        <label>Code (4–6 numbers)<input id="n-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="1234"></label></div>
+        <p class="err" id="n-err" role="alert"></p>
+        <button class="btn" type="submit">Add employee</button></form>`}</div>
     <form class="card" id="storesForm" novalidate><h3>Stores</h3>
       ${S.stores.map((s) => `<label>Store<input data-sid="${s.id}" value="${esc(s.name)}"></label>`).join("")}
       <label>Add a store<input id="newStore" placeholder="New store address"></label>
       <button class="btn" type="submit">Save stores</button></form>
-    <div class="card"><h3>Team</h3>${[...S.people].map(([, n]) => `<div>${esc(n || "No name")}</div>`).join("")}</div>` : ""}
-    <div class="card"><p class="muted">Signed in as ${esc(S.session.user.email)}</p><button class="btn ghost" data-act="signOut">Sign out</button></div>`;
+` : ""}
+    <div class="card"><p class="muted">Signed in as ${esc(S.session.user.email || S.member.display_name)}</p><button class="btn ghost" data-act="signOut">Sign out</button></div>`;
+}
+async function submitEmpAdd() {
+  const name = $("#n-name").value.trim(), id = $("#n-id").value.trim().toLowerCase(), pin = $("#n-pin").value.trim();
+  if (!name) return ($("#n-err").textContent = "Enter the employee's name.");
+  if (!/^[a-z0-9._-]{3,20}$/.test(id)) return ($("#n-err").textContent = "ID: 3–20 letters or numbers, no spaces.");
+  if (!/^[0-9]{4,6}$/.test(pin)) return ($("#n-err").textContent = "Code: 4 to 6 numbers.");
+  const { error } = await sb.rpc("add_employee", { p_login: id, p_name: name, p_pin: pin });
+  if (error) return ($("#n-err").textContent = errText(error));
+  await loadAll(); renderSettings();
+  toast(`${name} can now sign in with ID ${id} and code ${pin}`);
+}
+function openEmp(id) {
+  const e = S.employees.find((x) => x.id === id); if (!e) return;
+  $("#sheetRoot").innerHTML = `<div class="sheetbg" data-act="closeBg"><form class="sheet" id="empEditForm" data-id="${e.id}" novalidate>
+    <h2>${esc(e.name)}</h2><p class="muted">ID <span class="num">${esc(e.login_id)}</span></p>
+    <label>Name<input id="m-name" value="${esc(e.name)}"></label>
+    <label>New code (leave empty to keep it)<input id="m-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="••••"></label>
+    <label class="check"><input id="m-active" type="checkbox" ${e.active ? "checked" : ""}> Can sign in</label>
+    <p class="err" id="m-err" role="alert"></p><div id="delZone"></div>
+    <div class="foot"><button type="button" class="btn ghost" data-act="askDelEmp" data-id="${e.id}">Remove</button>
+      <span class="right"><button type="button" class="btn ghost" data-act="close">Cancel</button><button class="btn" type="submit">Save</button></span></div>
+  </form></div>`;
+}
+async function submitEmpEdit(form) {
+  const pin = $("#m-pin").value.trim();
+  if (pin && !/^[0-9]{4,6}$/.test(pin)) return ($("#m-err").textContent = "Code: 4 to 6 numbers.");
+  const { error } = await sb.rpc("update_employee", { p_id: form.dataset.id, p_name: $("#m-name").value.trim(), p_pin: pin || null, p_active: $("#m-active").checked });
+  if (error) return ($("#m-err").textContent = errText(error));
+  closeSheet(); await loadAll(); renderSettings(); toast(pin ? `Saved. New code: ${pin}` : "Saved");
 }
 async function submitStores() {
   try {
@@ -228,7 +296,7 @@ function renderToday() {
   $("#todaySum").innerHTML = `<span><span class="eyebrow">Today's sales</span><br><span class="muted" style="font-size:14px">${n} ${n === 1 ? "item" : "items"} · tap to see</span></span><span class="tot">${money(tot)}</span>`;
   $("#todayList").innerHTML = (S.sales.length
     ? S.sales.map((s) => `<div class="sale"><div style="min-width:0"><div>${s.qty} × ${esc(s.product_name)}</div>
-        <div class="meta">${time(s.created_at)} · ${money(s.unit_price)} each${S.people.get(s.sold_by) ? " · " + esc(S.people.get(s.sold_by)) : ""}</div></div>
+        <div class="meta">${time(s.created_at)} · ${money(s.unit_price)} each${(s.seller_name || S.people.get(s.sold_by)) ? " · " + esc(s.seller_name || S.people.get(s.sold_by)) : ""}</div></div>
         <span class="amt">${money(s.unit_price * s.qty)}</span><button class="undo" data-act="voidSale" data-id="${s.id}">Void</button></div>`).join("")
     : `<div class="empty">No sales yet today in this store.</div>`)
     + `<div class="tools"><button class="btn ghost wide" data-act="summary">Copy day summary for WhatsApp</button></div>`;
@@ -440,7 +508,11 @@ document.addEventListener("click", async (e) => {
   const a = el.dataset.act, id = el.dataset.id;
   if (a === "closeBg" && e.target !== el) return;
   const actions = {
-    retry: route, toSignUp: () => renderAuth("up"), toSignIn: () => renderAuth("in"),
+    retry: route, toSignUp: () => renderAuth("up"), toSignIn: () => renderAuth("in"), toEmp: () => renderAuth("emp"),
+    editEmp: () => openEmp(id),
+    askDelEmp: () => ($("#delZone").innerHTML = `<div class="confirm">Remove this employee? Their past sales stay. <button type="button" class="btn danger" data-act="doDelEmp" data-id="${id}">Yes, remove</button></div>`),
+    doDelEmp: async () => { const { error } = await sb.rpc("delete_employee", { p_id: id }); if (error) return toast(errText(error));
+      closeSheet(); await loadAll(); renderSettings(); toast("Employee removed"); },
     signOut: async () => { await sb.auth.signOut(); setStore(null); S.view = "main"; },
     addStoreField: () => { const n = document.querySelectorAll(".o-store").length + 1;
       $("#o-stores").insertAdjacentHTML("beforeend", `<label>Store ${n}<input class="o-store"></label>`); },
@@ -464,7 +536,8 @@ document.addEventListener("click", async (e) => {
 document.addEventListener("submit", (e) => {
   e.preventDefault();
   const f = e.target;
-  ({ authForm: () => submitAuth(f), orgForm: submitOrg, joinForm: submitJoin, storesForm: submitStores,
+  ({ authForm: () => submitAuth(f), empForm: () => submitEmp(f), orgForm: submitOrg, storesForm: submitStores,
+     empAddForm: submitEmpAdd, empEditForm: () => submitEmpEdit(f),
      saleForm: () => S.sale?.pid && submitSale(f), pform: () => submitEdit(f) })[f.id]?.();
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
@@ -478,6 +551,6 @@ if (SUPABASE_URL.includes("YOUR-PROJECT")) {
   sb.auth.onAuthStateChange((evt, session) => {
     const changed = (session?.user?.id || null) !== (S.session?.user?.id || null);
     S.session = session;
-    if (changed) { $("#app").innerHTML = ""; route(); }
+    if (changed && !S.busyLogin) { $("#app").innerHTML = ""; route(); }
   });
 }
