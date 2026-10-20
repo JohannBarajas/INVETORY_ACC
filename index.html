@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f4c5c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Inventory">
+  <title>Accessory Inventory</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@800&family=Figtree:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="wrap" id="app"><div class="empty">Loading…</div></main>
+  <nav class="bar" id="bar" hidden>
+    <div class="in">
+      <button class="btn sell" data-act="sell">Sell</button>
+      <button class="btn ghost" data-act="add">+ Add</button>
+    </div>
+  </nav>
+  <div id="sheetRoot"></div>
+  <div id="toastRoot"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
