@@ -327,21 +327,31 @@ async function submitEmpAdd() {
 function openEmp(id) {
   const e = S.employees.find((x) => x.id === id); if (!e) return;
   $("#sheetRoot").innerHTML = `<div class="sheetbg" data-act="closeBg"><form class="sheet" id="empEditForm" data-id="${e.id}" novalidate>
-    <h2>${esc(e.name)}</h2><p class="muted">ID <span class="num">${esc(e.login_id)}</span></p>
+    <h2>Edit employee</h2>
     <label>Name<input id="m-name" value="${esc(e.name)}"></label>
-    <label>New code (leave empty to keep it)<input id="m-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="••••"></label>
+    <label>Sign-in ID (user)<input id="m-login" value="${esc(e.login_id)}" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+    <label>Code / PIN — type a new one to change it<input id="m-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="•••• (leave empty to keep it)"></label>
     <label class="check"><input id="m-active" type="checkbox" ${e.active ? "checked" : ""}> Can sign in</label>
+    <p class="muted" style="font-size:13px">Changing the ID or code signs this employee out of their phone.</p>
     <p class="err" id="m-err" role="alert"></p><div id="delZone"></div>
-    <div class="foot"><button type="button" class="btn ghost" data-act="askDelEmp" data-id="${e.id}">Remove</button>
+    <div class="foot"><button type="button" class="btn ghost danger-text" data-act="askDelEmp" data-id="${e.id}">Remove</button>
       <span class="right"><button type="button" class="btn ghost" data-act="close">Cancel</button><button class="btn" type="submit">Save</button></span></div>
   </form></div>`;
 }
 async function submitEmpEdit(form) {
-  const pin = $("#m-pin").value.trim();
+  const id = form.dataset.id, e = S.employees.find((x) => x.id === id);
+  const name = $("#m-name").value.trim(), login = $("#m-login").value.trim().toLowerCase(), pin = $("#m-pin").value.trim(), active = $("#m-active").checked;
+  if (!name) return ($("#m-err").textContent = "Enter the employee's name.");
+  if (!/^[a-z0-9._-]{3,20}$/.test(login)) return ($("#m-err").textContent = "Sign-in ID: 3–20 letters or numbers, no spaces.");
   if (pin && !/^[0-9]{4,6}$/.test(pin)) return ($("#m-err").textContent = "Code: 4 to 6 numbers.");
-  const { error } = await sb.rpc("update_employee", { p_id: form.dataset.id, p_name: $("#m-name").value.trim(), p_pin: pin || null, p_active: $("#m-active").checked });
+  let { error } = await sb.rpc("edit_employee", { p_id: id, p_name: name, p_login: login, p_pin: pin || null, p_active: active });
+  if (error && /edit_employee|function/i.test(error.message || "")) {
+    if (login !== e.login_id) return ($("#m-err").textContent = "To change the sign-in ID, run supabase/006_edit_employee.sql in Supabase first.");
+    ({ error } = await sb.rpc("update_employee", { p_id: id, p_name: name, p_pin: pin || null, p_active: active }));
+  }
   if (error) return ($("#m-err").textContent = errText(error));
-  closeSheet(); await loadAll(); render(); toast(pin ? `Saved. New code: ${pin}` : "Saved");
+  closeSheet(); await loadAll(); render();
+  toast(`Saved. ${name} signs in with ${login}${pin ? " and code " + pin : ""}`);
 }
 async function submitStores() {
   try {
