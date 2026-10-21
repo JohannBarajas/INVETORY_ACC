@@ -36,9 +36,17 @@ label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;
 .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
 .stack{display:flex;flex-direction:column;gap:10px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid2 > label{justify-content:space-between}  /* inputs line up when one label wraps (longer Spanish text) */
 .err{font-size:14px;color:var(--bad);min-height:1em}
 .empty{padding:28px 18px;text-align:center;color:var(--muted)}
 .num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+::placeholder{color:var(--muted);opacity:1}
+
+/* language switch (English / Español) */
+.langs{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.langs button{min-height:44px;padding:8px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600}
+.langs button[aria-pressed="true"]{border-color:var(--brand);color:var(--brand);background:var(--soft);font-weight:700}
+.card .langs{justify-content:flex-start}
 
 /* store picker */
 .store{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;text-align:left;color:var(--ink);min-height:80px;width:100%}

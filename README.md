@@ -15,6 +15,7 @@ One owner, several stores, several employees. Every sale comes off the shelf aut
 - **Photos (optional):** add a thumbnail to any accessory by taking it with the camera, choosing it from the gallery, or pasting a copied image. Photos are shrunk before upload.
 - **Customer catalog:** a public page (no login) with photo, name, price and Available / Sold out — never units or cost. The owner shares it from **Settings → Customer catalog**; staff tap **Staff sign in** to see everything.
 - **Live:** every phone sees changes without refreshing.
+- **English / Español:** the app follows the phone's language. Anyone can switch with the English / Español buttons on the sign-in screen, the store picker, Settings or the catalog; the choice is saved on that phone. Prices can be typed with a comma or a dot (19,99 or 19.99).
 
 ## Stack
 
@@ -24,6 +25,7 @@ Plain HTML/CSS/JS (no build step) + [Supabase](https://supabase.com) for the dat
 index.html            page shell
 styles.css            styles (light/dark, phone-first)
 app.js                the app
+i18n.js               English / Spanish text, money and date formats, server error translations
 config.js             your Supabase URL + anon key  ← edit this
 supabase/schema.sql   tables, security rules, sale/stock functions, photo storage
 supabase/002_photos.sql  photo update for projects set up before photos existed
