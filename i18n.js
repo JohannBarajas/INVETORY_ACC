@@ -12,6 +12,10 @@ const en = {
   cancel: "Cancel", save: "Save", saving: "Saving…", saved: "Saved", added: "Added",
   done: "Done", edit: "Edit", remove: "Remove", delete: "Delete", deleted: "Deleted", change: "Change", open: "Open",
   noMatch: "Nothing matches your search.",
+  noMatchQ: "Nothing matches “{q}”.",
+  showAll: "Show all",
+  filterLabel: "Filter by type",
+  ty_all: "All", ty_case: "Cases", ty_glass: "Screen protectors", ty_charger: "Chargers", ty_cable: "Cables", ty_other: "Other",
   almostThere: "Almost there",
   configMsg: "Open <b>config.js</b> and paste your Supabase URL and anon key.",
 
@@ -235,6 +239,10 @@ const es = {
   cancel: "Cancelar", save: "Guardar", saving: "Guardando…", saved: "Guardado", added: "Agregado",
   done: "Listo", edit: "Editar", remove: "Quitar", delete: "Borrar", deleted: "Borrado", change: "Cambiar", open: "Abrir",
   noMatch: "No hay nada con esa búsqueda.",
+  noMatchQ: "No hay nada con «{q}».",
+  showAll: "Ver todo",
+  filterLabel: "Filtrar por tipo",
+  ty_all: "Todo", ty_case: "Fundas", ty_glass: "Micas", ty_charger: "Cargadores", ty_cable: "Cables", ty_other: "Otros",
   almostThere: "Ya casi",
   configMsg: "Abre <b>config.js</b> y pega la URL y la clave anon de Supabase.",
 
@@ -262,7 +270,7 @@ const es = {
 
   accessories: "Accesorios",
   staffSignIn: "Entrada del personal",
-  catSearch: "Buscar: iPhone 16, Galaxy…",
+  catSearch: "Buscar: funda 16, cargador…",
   askUs: "¿No ves lo que buscas? Pregúntanos en la tienda.",
   available: "Disponible",
   soldOutCat: "Agotado",
@@ -347,7 +355,7 @@ const es = {
   storeMenu: "cambiar tienda y menú",
   youreHere: "Estás aquí",
   close: "Cerrar",
-  search: "Buscar: iPhone 16, cable…",
+  search: "Buscar: funda 16 pro, mica…",
   searchLabel: "Buscar en el inventario",
   inventory: "Inventario",
   todaysSales: "Ventas de hoy",
@@ -370,7 +378,7 @@ const es = {
   add: "+ Agregar",
 
   whatSold: "¿Qué vendiste?",
-  saleSearch: "Buscar: iPhone 16",
+  saleSearch: "Buscar: funda 16 pro",
   notOnList: "No está en la lista. Agrégalo primero con + Agregar.",
   recordSale: "Registrar venta",
   leftAt: ({ n, store }) => `${one(n, "Queda 1", `Quedan ${n}`)} en ${store}`,
@@ -436,6 +444,18 @@ const es = {
   e_network: "No hay conexión. Revisa el internet e inténtalo de nuevo.",
   e_other: "No se pudo hacer: {msg}",
 };
+
+/* Words staff use for each kind of accessory, in English and Spanish (no accents).
+   Search treats any word in a group as the same; the type of a product is the group of the
+   first matching word in its name. To teach the app a new word, add it to its group. */
+export const SYN = {
+  case: ["case", "cases", "funda", "fundas", "forro", "forros", "cover", "estuche"],
+  glass: ["glass", "screen", "protector", "protectors", "mica", "micas", "vidrio", "templado", "tempered"],
+  charger: ["charger", "chargers", "cargador", "cargadores", "adapter", "adaptador", "block", "bloque"],
+  cable: ["cable", "cables", "cord", "cordon"],
+  audio: ["earbuds", "airpods", "headphones", "audifonos", "auriculares", "buds", "speaker", "bocina"],
+};
+export const TYPES = ["case", "glass", "charger", "cable"];   // filter chips; everything else is "other"
 
 const dicts = { en, es };
 const LOCALES = { en: "en-US", es: "es-US" };

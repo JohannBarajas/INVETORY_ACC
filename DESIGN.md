@@ -216,7 +216,7 @@ The system is flat. Cards, lists, rows and inputs sit on the page with 1px Line 
 
 ## Shapes
 
-Soft but firm corners on a fixed scale: 12px for controls (buttons, inputs, steppers, chosen-item box), 16px for cards and lists, 20px for the top of sheets, 10px for thumbnails (8px small, 14px large), and a full pill for status chips. The one deliberately asymmetric shape is the **price tag**: 4px on the left and 10px on the right, like a hang-tag. Product photos are square crops; with no photo, a Soft tile shows the item's first letter in Archivo.
+Soft but firm corners on a fixed scale: 12px for controls (buttons, inputs, steppers, chosen-item box), 16px for cards and lists, 20px for the top of sheets, 10px for thumbnails (8px small, 14px large), and a full pill for status chips. The one deliberately asymmetric shape is the **price tag**: 4px on the left and 10px on the right, like a hang-tag. Product photos are square crops; with no photo, a Soft tile shows a line icon for the kind of accessory (case, screen protector, charger, cable, other; 2px stroke, Muted) over a short mono model code in Ink (16PM, S24, 20W). The small 36px tile shows the icon only.
 
 ## Components
 
@@ -248,6 +248,9 @@ Chunky and thumb-sure.
 
 ### Navigation
 There's no tab bar. The store picker is the home screen (one large card per store). On the store screen, the store name (Headline size, one line with an ellipsis) is itself a button with a Harbor Teal chevron. It opens the **store menu**, a bottom sheet with: the store list (current store marked "You're here" in Teal; others show their units and switch in one tap), then a grouped list of Employees (owner only), Settings / Account and Log out (in red), then the language switch and a Close button. Nothing else lives in the header. Settings and Employees pages use a "Done" link at the top right to go back.
+
+### Type Filter Chips
+One row of 44px chips under "Inventory" and under the sell sheet's search: All · Cases · Screen protectors · Chargers · Cables · Other (only kinds the business has; hidden when there's just one). Same look as the language switch: ghost with a Line border, selected gets a Harbor Teal border and text on Soft. The row scrolls sideways edge to edge instead of wrapping.
 
 ### Language Switch
 Two side-by-side 44px ghost buttons, "English" and "Español" (each name in its own language). The selected one gets a Harbor Teal border and text on Soft. It sits centered at the bottom of the sign-in, store picker and catalog screens, left-aligned in its own Settings card, and inside the store menu. Never in the store screen header itself.

@@ -1,6 +1,6 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
-import { t, lang, locale, setLang, errText, dec } from "./i18n.js?v=202610211900";
+import { t, lang, locale, setLang, errText, dec, SYN, TYPES } from "./i18n.js?v=202610212000";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -8,7 +8,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const S = {
   session: null, member: null, org: null,
   stores: [], products: [], inv: new Map(), sales: [], people: new Map(),
-  storeId: null, q: "", view: "loading",
+  storeId: null, q: "", type: "all", view: "loading",
   pending: new Map(), timers: new Map(), sale: null, channel: null,
   employees: [], empTableMissing: false, busyLogin: false, redraw: null,
 };
@@ -26,9 +26,10 @@ const qtyOf = (pid, sid) => (S.inv.get(key(pid, sid)) || 0) + (S.pending.get(key
 const product = (id) => S.products.find((p) => p.id === id);
 const store = (id) => S.stores.find((s) => s.id === id);
 const photoUrl = (p) => (p?.photo_path ? `${SUPABASE_URL}/storage/v1/object/public/product-photos/${p.photo_path}` : "");
+/* no photo: an icon for the kind of accessory plus a short model code (16PM, S24, 20W) */
 const thumb = (p, cls = "thumb") => photoUrl(p)
   ? `<img class="${cls}" src="${esc(photoUrl(p))}" alt="" loading="lazy">`
-  : `<span class="${cls} ph" aria-hidden="true">${esc((p?.name || "?").trim().slice(0, 1).toUpperCase())}</span>`;
+  : `<span class="${cls} ph" aria-hidden="true">${ICON[typeOf(p)]}${modelCode(p?.name) ? `<span class="code">${esc(modelCode(p.name))}</span>` : ""}</span>`;
 const isOwner = () => S.member?.role === "owner";
 const time = (iso) => new Date(iso).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
 const left = (n) => (n ? t("nLeft", { n }) : t("soldOut"));
@@ -42,6 +43,56 @@ function setStore(id) {
   S.storeId = id; S.q = "";
   try { id ? localStorage.setItem("storeId", id) : localStorage.removeItem("storeId"); } catch (_) {}
 }
+/* ───────────── finding items ─────────────
+   Search ignores case and accents, understands Spanish words for each kind of accessory
+   (funda = case, mica = glass…, see SYN in i18n.js) and short model names (16pm = 16 pro max). */
+const norm = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+const tokens = (name) => norm(name).split(/[^a-z0-9+]+/).filter(Boolean);
+const SHORT = [[/(\d+)\s*(pm|promax)\b/g, "$1 pro max"], [/\bpromax\b/g, "pro max"]];
+function queryWords(q) {
+  let s = norm(q);
+  for (const [re, to] of SHORT) s = s.replace(re, to);
+  return s.split(/[\s,]+/).filter(Boolean);
+}
+function typeOf(p) {
+  for (const tk of tokens(p?.name)) for (const ty of TYPES) if (SYN[ty].includes(tk)) return ty;
+  return "other";
+}
+function matches(p, words) {
+  const n = norm(p.name), tk = tokens(p.name);
+  return words.every((w) => n.includes(w) || (w.length >= 3 && Object.values(SYN).some((g) =>
+    g.some((s) => s.startsWith(w)) && g.some((s) => tk.includes(s)))));
+}
+const findItems = (items, q, type = "all") => {
+  const words = queryWords(q);
+  return items.filter((p) => (type === "all" || typeOf(p) === type) && matches(p, words));
+};
+function modelCode(name) {
+  const parts = String(name ?? "").split(/\s+/), i = parts.findIndex((w) => /\d/.test(w));
+  if (i < 0) return "";
+  const suf = { pro: "P", max: "M", plus: "+", ultra: "U", mini: "m" };
+  let code = parts[i].toUpperCase();
+  for (const w of parts.slice(i + 1)) { const s = suf[norm(w)]; if (!s) break; code += s; }
+  return code.slice(0, 5);
+}
+const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const ICON = {
+  case: svg('<rect x="6" y="2.5" width="12" height="19" rx="3"/><circle cx="14.5" cy="6.2" r="1.2"/>'),
+  glass: svg('<rect x="6" y="2.5" width="12" height="19" rx="2"/><path d="M9.5 10l5-5M9.5 15l5-5"/>'),
+  charger: svg('<path d="M9.5 2.5v4M14.5 2.5v4"/><rect x="6.5" y="6.5" width="11" height="9" rx="2"/><path d="M12 15.5v6"/>'),
+  cable: svg('<rect x="9" y="2.5" width="6" height="6" rx="1"/><path d="M12 8.5v3.5c0 4-5 3-5 7v2.5"/>'),
+  other: svg('<path d="M3.5 12V4.5h7.5l9.5 9.5-7 7z"/><circle cx="7.8" cy="8.5" r="1.3"/>'),
+};
+/* type chips: only the kinds this business actually has; none when everything is one kind */
+function chips(items, current, act) {
+  const present = [...TYPES, "other"].filter((ty) => items.some((p) => typeOf(p) === ty));
+  if (present.length < 2) return "";
+  return `<div class="chips" role="group" aria-label="${t("filterLabel")}">${["all", ...present].map((ty) =>
+    `<button type="button" class="chip" data-act="${act}" data-type="${ty}" aria-pressed="${ty === current}">${t("ty_" + ty)}</button>`).join("")}</div>`;
+}
+const noMatch = (q, type, act) => `<div class="empty">${q.trim() ? t("noMatchQ", { q: esc(q.trim()) }) : t("noMatch")}
+  ${type !== "all" || q.trim() ? `<br><button type="button" class="link" data-act="${act}">${t("showAll")}</button>` : ""}</div>`;
+
 /* EN / ES switch, shown on sign-in, store picker, settings and the catalog */
 const langSwitch = () => `<div class="langs" role="group" aria-label="${t("langLabel")}">
   <button type="button" data-act="lang" data-lang="en" lang="en" aria-pressed="${lang === "en"}">English</button>
@@ -208,15 +259,14 @@ async function renderCatalog() {
   drawCatalog();
 }
 function drawCatalog() {
-  const words = S.catQ.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const items = S.cat.items.filter((p) => words.every((w) => p.name.toLowerCase().includes(w)))
+  const items = findItems(S.cat.items, S.catQ)
     .sort((a, b) => (b.in_stock - a.in_stock) || a.name.localeCompare(b.name, locale));
   $("#cgrid").innerHTML = items.length ? items.map((p) => `<div class="citem ${p.in_stock ? "" : "out"}">
       ${thumb(p, "cimg")}
       <div class="cbody"><b>${esc(p.name)}</b>
         <div class="cmeta">${p.price != null ? `<span class="price">${money(p.price)}</span>` : ""}
         <span class="avail">${p.in_stock ? t("available") : t("soldOutCat")}</span></div></div></div>`).join("")
-    : `<div class="empty" style="grid-column:1/-1">${t("noMatch")}</div>`;
+    : `<div class="empty" style="grid-column:1/-1">${S.catQ.trim() ? t("noMatchQ", { q: esc(S.catQ.trim()) }) : t("noMatch")}</div>`;
 }
 
 /* ───────────── first-time setup ───────────── */
@@ -404,7 +454,7 @@ function renderStore() {
         <input id="q" type="search" placeholder="${t("search")}" aria-label="${t("searchLabel")}" autocomplete="off"></div>
       <div id="lowBox"></div>
       <details class="today" id="today"><summary id="todaySum"></summary><div id="todayList"></div></details>
-      <h3>${t("inventory")}</h3><div class="list" id="plist"></div>`;
+      <h3>${t("inventory")}</h3><div id="chips"></div><div class="list" id="plist"></div>`;
     $("#q").value = S.q;
     $("#q").addEventListener("input", (e) => { S.q = e.target.value; renderList(); });
   }
@@ -427,19 +477,19 @@ function renderList() {
   const low = S.products.filter((p) => qtyOf(p.id, sid) < p.low_stock_threshold).sort((a, b) => qtyOf(a.id, sid) - qtyOf(b.id, sid));
   $("#lowBox").innerHTML = low.length ? `<div class="lowbox"><div class="lowhead"><span class="eyebrow">${t("reorderHead")}</span><b class="num">${low.length}</b></div>
     ${low.map((p) => `<div class="lowitem"><span>${esc(p.name)}</span><b class="num">${left(qtyOf(p.id, sid))}</b></div>`).join("")}</div>` : "";
-  if (!S.products.length) { $("#plist").innerHTML = `<div class="empty">${t("emptyInv")}</div>`; return; }
-  const words = S.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const list = S.products.filter((p) => words.every((w) => p.name.toLowerCase().includes(w)));
+  if (!S.products.length) { $("#chips").innerHTML = ""; $("#plist").innerHTML = `<div class="empty">${t("emptyInv")}</div>`; return; }
+  $("#chips").innerHTML = chips(S.products, S.type, "listType");
+  const list = findItems(S.products, S.q, S.type);
+  const meta = (p) => [isOwner() ? `${t("cost")} <b>${money(p.cost)}</b>` : "", p.price != null ? `${t("price")} <b>${money(p.price)}</b>` : ""].filter(Boolean);
   $("#plist").innerHTML = list.length ? list.map((p) => {
     const q = qtyOf(p.id, sid);
     return `<div class="row">${thumb(p)}<div style="min-width:0">
       <button class="name" data-act="edit" data-id="${p.id}">${esc(p.name)}</button>
-      <div class="cost">${t("cost")} <b>${money(p.cost)}</b>${p.price != null ? ` · ${t("price")} <b>${money(p.price)}</b>` : ""}
-        · <button class="editlink" data-act="edit" data-id="${p.id}">${t("edit")}</button></div></div>
+      <div class="cost">${[...meta(p), `<button class="editlink" data-act="edit" data-id="${p.id}">${t("edit")}</button>`].join(" · ")}</div></div>
       <div class="stepper"><button data-act="dec" data-id="${p.id}" aria-label="${esc(t("removeOne", { name: p.name }))}">−</button>
       <span class="q ${q < p.low_stock_threshold ? "low" : ""}">${q}</span>
       <button data-act="inc" data-id="${p.id}" aria-label="${esc(t("addOne", { name: p.name }))}">+</button></div></div>`;
-  }).join("") : `<div class="empty">${t("noMatch")}</div>`;
+  }).join("") : noMatch(S.q, S.type, "listAll");
 }
 
 /* store menu: tapping the store name opens a bottom sheet to switch store, reach owner tools, or log out */
@@ -477,22 +527,25 @@ function bump(pid, d) {
 }
 
 /* ───────────── sell ───────────── */
-function openSale() { S.sale = { pid: null, q: "" }; drawSale(); }
+function openSale() { S.sale = { pid: null, q: "", type: "all" }; drawSale(); }
 function drawSale() {
   const sid = S.storeId, p = S.sale.pid && product(S.sale.pid);
   if (!p) {
-    const words = S.sale.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const list = S.products.filter((x) => words.every((w) => x.name.toLowerCase().includes(w)));
+    // in stock first, sold out at the end
+    const list = findItems(S.products, S.sale.q, S.sale.type).sort((a, b) => !qtyOf(a.id, sid) - !qtyOf(b.id, sid));
     const picks = list.length ? list.map((x) => { const n = qtyOf(x.id, sid);
-      return `<button type="button" class="pick" data-act="pickSale" data-id="${x.id}" ${n ? "" : "disabled"}><span class="pickname">${thumb(x, "thumb sm")}<b>${esc(x.name)}</b></span><span class="left">${left(n)}</span></button>`; }).join("")
-      : `<div class="empty">${t("notOnList")}</div>`;
-    if ($("#picks")) { $("#picks").innerHTML = picks; return; }
+      return `<button type="button" class="pick" data-act="pickSale" data-id="${x.id}" ${n ? "" : "disabled"}><span class="pickname">${thumb(x, "thumb sm")}<b>${esc(x.name)}</b></span><span class="left">${x.price != null && n ? `<b class="num">${money(x.price)}</b> · ` : ""}${left(n)}</span></button>`; }).join("")
+      : (S.products.length ? noMatch(S.sale.q, S.sale.type, "saleAll") : `<div class="empty">${t("notOnList")}</div>`);
+    const ch = chips(S.products, S.sale.type, "saleType");
+    if ($("#picks")) { $("#picks").innerHTML = picks; $("#schips").innerHTML = ch; return; }
     $("#sheetRoot").innerHTML = `<div class="sheetbg" data-act="closeBg"><form class="sheet" id="saleForm" novalidate>
       <h2>${t("whatSold")}</h2>
-      <input id="s-q" type="search" placeholder="${t("saleSearch")}" aria-label="${t("searchLabel")}" autocomplete="off">
+      <input id="s-q" type="search" placeholder="${t("saleSearch")}" aria-label="${t("searchLabel")}" autocomplete="off" value="${esc(S.sale.q)}">
+      <div id="schips">${ch}</div>
       <div class="picks" id="picks">${picks}</div>
       <div class="foot"><span></span><button type="button" class="btn ghost" data-act="close">${t("cancel")}</button></div></form></div>`;
     $("#s-q").addEventListener("input", (e) => { S.sale.q = e.target.value; drawSale(); });
+    $("#s-q").focus();                              // ready to type as soon as Sell is tapped
     return;
   }
   const max = qtyOf(p.id, sid);
@@ -674,6 +727,10 @@ document.addEventListener("click", async (e) => {
     settings: () => { closeSheet(); S.view = "settings"; $("#app").innerHTML = ""; render(); scrollTo(0, 0); }, back: () => { S.view = "main"; $("#app").innerHTML = ""; render(); },
     inc: () => bump(id, 1), dec: () => bump(id, -1),
     edit: () => openEdit(id), add: () => openEdit(null), sell: openSale,
+    listType: () => { S.type = el.dataset.type; renderList(); },
+    listAll: () => { S.type = "all"; S.q = ""; $("#q").value = ""; renderList(); },
+    saleType: () => { S.sale.type = el.dataset.type; drawSale(); },
+    saleAll: () => { S.sale.type = "all"; S.sale.q = ""; $("#s-q").value = ""; drawSale(); },
     pickSale: () => { S.sale.pid = id; drawSale(); },
     repick: () => { S.sale.pid = null; $("#sheetRoot").innerHTML = ""; drawSale(); },
     sq: () => { const i = $("#s-qty"), max = +i.max || 1; i.value = Math.min(max, Math.max(1, (parseInt(i.value, 10) || 1) + +el.dataset.d)); i.dispatchEvent(new Event("input")); },
