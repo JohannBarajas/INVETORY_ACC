@@ -128,9 +128,9 @@ const en = {
   empRemoved: "Employee removed",
 
   /* store screen */
-  youreAt: "You're at",
-  empHeader: "⚙ Employees",
-  changeStore: "Change store",
+  storeMenu: "change store and menu",
+  youreHere: "You're here",
+  close: "Close",
   search: "Search: case 16, cable…",
   searchLabel: "Search inventory",
   inventory: "Inventory",
@@ -344,9 +344,9 @@ const es = {
   yesRemove: "Sí, quitar",
   empRemoved: "Empleado quitado",
 
-  youreAt: "Estás en",
-  empHeader: "⚙ Empleados",
-  changeStore: "Cambiar tienda",
+  storeMenu: "cambiar tienda y menú",
+  youreHere: "Estás aquí",
+  close: "Cerrar",
   search: "Buscar: iPhone 16, cable…",
   searchLabel: "Buscar en el inventario",
   inventory: "Inventario",

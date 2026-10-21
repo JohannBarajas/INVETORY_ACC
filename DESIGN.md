@@ -192,7 +192,7 @@ A calm teal-and-mist base with one bright price-tag yellow and a single alert re
 - **Body** (400, 16px, 1.45): running text and sale rows. Inputs stay at 16px so iOS never zooms.
 - **Item name** (Figtree 700, 17px, 1.25): product names in the inventory list.
 - **Label** (600, 13px): form labels and fine print, Muted color.
-- **Eyebrow** (700, 12px, 0.08em, uppercase): context over titles: "YOU'RE AT", "TODAY'S SALES", "REORDER · RUNNING LOW".
+- **Eyebrow** (700, 12px, 0.08em, uppercase): context over titles: "TODAY'S SALES", "REORDER · RUNNING LOW".
 - **Number** (Plex Mono 600, 18–24px, tabular): stock counts, totals and amounts.
 
 ### Named Rules
@@ -200,7 +200,7 @@ A calm teal-and-mist base with one bright price-tag yellow and a single alert re
 
 ## Layout
 
-A single centered column, max 640px wide, with 16px side gutters (or the safe-area inset if it's larger). Sections stack with 14px gaps; inside cards the gap is 10–12px. The store screen has three fixed zones: a **sticky header** (eyebrow, store name, header links, search) that sits on Counter Mist with a bottom border, a **scrolling body** (reorder box, today's sales, inventory list), and a **fixed bottom bar** (Sell 2fr, + Add 1fr) on Surface. The body reserves 110px plus the safe area at the bottom so the bar never covers the last row.
+A single centered column, max 640px wide, with 16px side gutters (or the safe-area inset if it's larger). Sections stack with 14px gaps; inside cards the gap is 10–12px. The store screen has three fixed zones: a **sticky header** (the store-name menu button and search, about 120px tall) that sits on Counter Mist with a bottom border, a **scrolling body** (reorder box, today's sales, inventory list), and a **fixed bottom bar** (Sell 2fr, + Add 1fr) on Surface. The body reserves 110px plus the safe area at the bottom so the bar never covers the last row.
 
 Sheets slide up from the bottom, max 520px wide and 92% of the viewport high, with their actions in a footer row (Cancel left or right, primary flexing to fill).
 
@@ -247,10 +247,10 @@ Chunky and thumb-sure.
 - **Error:** a 14px Reorder Red message below the form, announced with role="alert".
 
 ### Navigation
-There's no tab bar. The store picker is the home screen (one large card per store). On the store screen, the sticky header carries text links: Employees (owner only), Change store, Log out (in red). Settings and Employees pages use a "Done" link at the top right to go back.
+There's no tab bar. The store picker is the home screen (one large card per store). On the store screen, the store name (Headline size, one line with an ellipsis) is itself a button with a Harbor Teal chevron. It opens the **store menu**, a bottom sheet with: the store list (current store marked "You're here" in Teal; others show their units and switch in one tap), then a grouped list of Employees (owner only), Settings / Account and Log out (in red), then the language switch and a Close button. Nothing else lives in the header. Settings and Employees pages use a "Done" link at the top right to go back.
 
 ### Language Switch
-Two side-by-side 44px ghost buttons, "English" and "Español" (each name in its own language). The selected one gets a Harbor Teal border and text on Soft. It sits centered at the bottom of the sign-in, store picker and catalog screens, and left-aligned in its own Settings card. Never in the store screen header.
+Two side-by-side 44px ghost buttons, "English" and "Español" (each name in its own language). The selected one gets a Harbor Teal border and text on Soft. It sits centered at the bottom of the sign-in, store picker and catalog screens, left-aligned in its own Settings card, and inside the store menu. Never in the store screen header itself.
 
 ### Inventory Row (signature)
 A three-column grid: a 52px thumbnail, the item name (17px 700) above a "Cost · Price · Edit" meta line, and a stepper. The stepper is two 46px square ghost buttons around a 20px mono count; the count turns Reorder Red when it's below the alert level.

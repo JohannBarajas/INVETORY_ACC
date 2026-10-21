@@ -60,8 +60,17 @@ label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;
   margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));
   padding:8px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));
   display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)}
-.head .line{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.head .line > div{min-width:0}
+/* the store name is the menu button: switch store, owner tools, log out */
+.storeh{min-width:0}
+.storebtn{display:inline-flex;align-items:center;gap:6px;max-width:100%;min-height:44px;padding:0;border:0;background:none;color:var(--ink);font:inherit;text-align:left}
+.storebtn .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.storebtn svg{flex:none;width:22px;height:22px;color:var(--brand)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.menulist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.menuitem{min-height:50px;padding:12px;border:0;border-top:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;text-align:left}
+.menuitem:first-child{border-top:0}
+.menuitem.logout{color:var(--bad)}
+.pick .left.here{color:var(--brand);font-weight:700}
 
 /* low stock */
 .lowbox{background:var(--bad-bg);border:1px solid var(--bad);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
@@ -98,7 +107,9 @@ label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;
 /* bottom bar */
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--surface);border-top:1px solid var(--line);
   padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
-.bar .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.bar .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}
+.bar .btn{white-space:nowrap}
+.bar [data-act=add]{min-width:110px}
 .bar .sell{background:var(--tag);color:var(--tag-ink);font-size:18px;font-weight:800}
 
 /* sheets */
@@ -145,7 +156,6 @@ textarea{font:inherit;font-size:15px;width:100%;min-height:160px;border:1px soli
 .check{flex-direction:row;align-items:center;gap:10px;font-size:16px;color:var(--ink)}
 .check input{width:22px;height:22px;min-height:0}
 #empAddForm{border-top:1px solid var(--line);padding-top:12px}
-.headlinks{display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 
 /* public catalog */
 .cathead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}

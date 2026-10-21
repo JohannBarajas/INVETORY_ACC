@@ -1,6 +1,6 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
-import { t, lang, locale, setLang, errText, dec } from "./i18n.js?v=202610211800";
+import { t, lang, locale, setLang, errText, dec } from "./i18n.js?v=202610211900";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -398,8 +398,9 @@ function renderStore() {
   $("#bar").hidden = false;
   if (!$("#q")) {
     $("#app").innerHTML = `
-      <div class="head"><div class="line"><div><span class="eyebrow">${t("youreAt")}</span><h2 id="storeName"></h2></div>
-        <div class="headlinks">${isOwner() ? `<button class="link" data-act="employees">${t("empHeader")}</button>` : ""}<button class="link" data-act="changeStore">${t("changeStore")}</button><button class="link logout" data-act="signOut">${t("logOut")}</button></div></div>
+      <div class="head">
+        <h2 class="storeh"><button class="storebtn" data-act="menu" aria-haspopup="dialog"><span class="nm" id="storeName"></span><span class="sr">, ${t("storeMenu")}</span>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></h2>
         <input id="q" type="search" placeholder="${t("search")}" aria-label="${t("searchLabel")}" autocomplete="off"></div>
       <div id="lowBox"></div>
       <details class="today" id="today"><summary id="todaySum"></summary><div id="todayList"></div></details>
@@ -439,6 +440,24 @@ function renderList() {
       <span class="q ${q < p.low_stock_threshold ? "low" : ""}">${q}</span>
       <button data-act="inc" data-id="${p.id}" aria-label="${esc(t("addOne", { name: p.name }))}">+</button></div></div>`;
   }).join("") : `<div class="empty">${t("noMatch")}</div>`;
+}
+
+/* store menu: tapping the store name opens a bottom sheet to switch store, reach owner tools, or log out */
+function openMenu() {
+  const units = (sid) => S.products.reduce((a, p) => a + qtyOf(p.id, sid), 0);
+  $("#sheetRoot").innerHTML = `<div class="sheetbg" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+    <h2 id="menuTitle">${t("stores")}</h2>
+    <div class="picks">${S.stores.map((s) => s.id === S.storeId
+      ? `<button type="button" class="pick" data-act="close" aria-current="true"><b>${esc(s.name)}</b><span class="left here">${t("youreHere")}</span></button>`
+      : `<button type="button" class="pick" data-store="${s.id}"><b>${esc(s.name)}</b><span class="left">${t("units", { n: units(s.id) })}</span></button>`).join("")}</div>
+    <div class="menulist">
+      ${isOwner() ? `<button type="button" class="menuitem" data-act="employees">${t("employees")}</button>` : ""}
+      <button type="button" class="menuitem" data-act="settings">${isOwner() ? t("settings") : t("account")}</button>
+      <button type="button" class="menuitem logout" data-act="signOut">${S.member?.display_name ? t("logOutName", { name: esc(S.member.display_name) }) : t("logOut")}</button>
+    </div>
+    ${langSwitch()}
+    <button type="button" class="btn ghost wide" data-act="close">${t("close")}</button></div></div>`;
+  $("#sheetRoot .pick")?.focus({ preventScroll: true });
 }
 
 /* quick +/−: taps are grouped and saved together */
@@ -628,7 +647,7 @@ function closeSheet() { $("#sheetRoot").innerHTML = ""; S.sale = null; }
 /* ───────────── events ───────────── */
 document.addEventListener("click", async (e) => {
   const el = e.target.closest("[data-act],[data-store]"); if (!el) return;
-  if (el.dataset.store) { setStore(el.dataset.store); $("#app").innerHTML = ""; await loadSales(); render(); scrollTo(0, 0); return; }
+  if (el.dataset.store) { closeSheet(); setStore(el.dataset.store); $("#app").innerHTML = ""; await loadSales(); render(); scrollTo(0, 0); return; }
   const a = el.dataset.act, id = el.dataset.id;
   if (a === "closeBg" && e.target !== el) return;
   const actions = {
@@ -645,14 +664,14 @@ document.addEventListener("click", async (e) => {
       closeSheet(); await loadAll(); render(); toast(t("empRemoved")); },
     askDelEmpInline: () => ($(`#del-${id}`).innerHTML = `<div class="confirm">${t("removeNamedQ", { name: esc(S.employees.find((x) => x.id === id)?.name || "") })} <button type="button" class="btn danger" data-act="doDelEmp" data-id="${id}">${t("yesRemove")}</button> <button type="button" class="btn ghost" data-act="cancelDel" data-id="${id}">${t("cancel")}</button></div>`),
     cancelDel: () => ($(`#del-${id}`).innerHTML = ""),
-    employees: () => { S.view = "employees"; S.empSales = null; $("#app").innerHTML = ""; render(); scrollTo(0, 0); },
+    menu: openMenu,
+    employees: () => { closeSheet(); S.view = "employees"; S.empSales = null; $("#app").innerHTML = ""; render(); scrollTo(0, 0); },
     signOut: async () => { if (S.channel) { sb.removeChannel(S.channel); S.channel = null; }
       setStore(null); S.view = "main"; S.member = null; S.org = null; closeSheet(); $("#bar").hidden = true;
       await sb.auth.signOut(); toast(t("loggedOut")); },
     addStoreField: () => { const n = document.querySelectorAll(".o-store").length + 1;
       $("#o-stores").insertAdjacentHTML("beforeend", `<label>${t("storeN", { n })}<input class="o-store"></label>`); },
-    settings: () => { S.view = "settings"; $("#app").innerHTML = ""; render(); scrollTo(0, 0); }, back: () => { S.view = "main"; $("#app").innerHTML = ""; render(); },
-    changeStore: () => { setStore(null); $("#app").innerHTML = ""; render(); },
+    settings: () => { closeSheet(); S.view = "settings"; $("#app").innerHTML = ""; render(); scrollTo(0, 0); }, back: () => { S.view = "main"; $("#app").innerHTML = ""; render(); },
     inc: () => bump(id, 1), dec: () => bump(id, -1),
     edit: () => openEdit(id), add: () => openEdit(null), sell: openSale,
     pickSale: () => { S.sale.pid = id; drawSale(); },
