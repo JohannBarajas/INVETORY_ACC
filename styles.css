@@ -152,7 +152,19 @@ button.stat[aria-expanded="true"]::after{transform:translateY(4px) rotate(225deg
 .qtyrow input{text-align:center;font-family:var(--f-num);font-size:20px;font-weight:600}
 .total{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;color:var(--muted)}
 .total b{font-family:var(--f-num);font-size:24px;color:var(--ink)}
-textarea{font:inherit;font-size:15px;width:100%;min-height:160px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface);color:var(--ink)}
+textarea{font:inherit;font-size:16px;width:100%;min-height:160px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface);color:var(--ink)}
+
+/* paste a list (owner) */
+.imexample{margin:0;font-family:var(--f-num);font-size:13px;line-height:1.5;background:var(--soft);border-radius:12px;padding:10px 12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.imsum{font-size:15px}
+.imrows{max-height:50vh}
+.imrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
+.imrow:first-child{border-top:0}
+.imrow b{display:block;overflow-wrap:anywhere}
+.imrow .meta{font-size:13px}
+.imrow.skip{opacity:.55}
+.imrow.bad{background:var(--bad-bg)}
+.imqty{font-weight:600;font-size:17px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;z-index:30;max-width:calc(100% - 32px);font-size:15px}
 
 /* product photos (optional) */

@@ -1,7 +1,7 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm";
-import * as CONFIG from "./config.js?v=202610212200";
+import * as CONFIG from "./config.js?v=202610212300";
 const { SUPABASE_URL, SUPABASE_ANON_KEY } = CONFIG;
-import { t, lang, locale, setLang, errText, dec, SYN, TYPES } from "./i18n.js?v=202610212200";
+import { t, lang, locale, setLang, errText, dec, SYN, TYPES } from "./i18n.js?v=202610212300";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -488,7 +488,8 @@ function renderList() {
     : `<div class="stat ok"><span class="lbl">${t("reorderLbl")}</span><b>0</b><span class="sub">${t("allStocked")}</span></div>`;
   $("#pLow").innerHTML = low.map((p) => `<div class="lowitem"><span>${esc(p.name)}</span><b class="num">${left(qtyOf(p.id, sid))}</b></div>`).join("");
   showPanels();
-  if (!S.products.length) { $("#chips").innerHTML = ""; $("#invCount").textContent = ""; $("#plist").innerHTML = `<div class="empty">${t("emptyInv")}</div>`; return; }
+  if (!S.products.length) { $("#chips").innerHTML = ""; $("#invCount").textContent = "";
+    $("#plist").innerHTML = `<div class="empty">${t("emptyInv")}${isOwner() ? `<br><button type="button" class="link" data-act="import">${t("importTitle")}</button>` : ""}</div>`; return; }
   $("#chips").innerHTML = chips(S.products, S.type, "listType");
   const list = findItems(S.products, S.q, S.type);
   $("#invCount").textContent = list.length;
@@ -521,7 +522,8 @@ function openMenu() {
       ? `<button type="button" class="pick" data-act="close" aria-current="true"><b>${esc(s.name)}</b><span class="left here">${t("youreHere")}</span></button>`
       : `<button type="button" class="pick" data-store="${s.id}"><b>${esc(s.name)}</b><span class="left">${t("units", { n: units(s.id) })}</span></button>`).join("")}</div>
     <div class="menulist">
-      ${isOwner() ? `<button type="button" class="menuitem" data-act="employees">${t("employees")}</button>` : ""}
+      ${isOwner() ? `<button type="button" class="menuitem" data-act="import">${t("importTitle")}</button>
+      <button type="button" class="menuitem" data-act="employees">${t("employees")}</button>` : ""}
       <button type="button" class="menuitem" data-act="settings">${isOwner() ? t("settings") : t("account")}</button>
       <button type="button" class="menuitem logout" data-act="signOut">${S.member?.display_name ? t("logOutName", { name: esc(S.member.display_name) }) : t("logOut")}</button>
     </div>
@@ -715,6 +717,75 @@ async function submitEdit(form) {
     closeSheet(); await loadAll(); render(); toast(id ? t("saved") : t("added"));
   } catch (e) { $("#f-err").textContent = errText(e); btn.disabled = false; btn.textContent = t("save"); }
 }
+/* ───────────── paste a list (owner) ─────────────
+   One product per line: name, cost, price, quantity. Columns split by tab (pasted from Excel or
+   Google Sheets), ";" or "|", otherwise ",". Quantity goes to the store you're in. Names that
+   already exist are skipped so pasting the same list twice doesn't duplicate anything. */
+function parseList(text) {
+  const have = new Set(S.products.map((p) => norm(p.name).trim()));
+  const seen = new Set();
+  return text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line, i) => {
+    const sep = line.includes("\t") ? "\t" : /[;|]/.test(line) ? /[;|]/ : ",";
+    const [name = "", cost = "", price = "", qty = ""] = line.split(sep).map((x) => x.trim().replace(/^\$/, ""));
+    const row = { line: i + 1, name, cost: cost === "" ? 0 : dec(cost), price: price === "" ? null : dec(price), qty: qty === "" ? 0 : Number(qty) };
+    const key = norm(name).trim();
+    if (i === 0 && /^(name|nombre|producto|product)$/i.test(name)) row.skip = "header";
+    else if (!name) row.err = t("imErrName");
+    else if (Number.isNaN(row.cost) || Number.isNaN(row.price)) row.err = t("imErrPrice");
+    else if (!Number.isInteger(row.qty) || row.qty < 0) row.err = t("imErrQty");
+    else if (have.has(key) || seen.has(key)) row.skip = "exists";
+    seen.add(key);
+    return row;
+  }).filter((r) => r.skip !== "header");
+}
+function openImport(text = "") {
+  $("#sheetRoot").innerHTML = `<div class="sheetbg" data-act="closeBg"><form class="sheet" id="importForm" novalidate role="dialog" aria-modal="true" aria-labelledby="imTitle">
+    <h2 id="imTitle">${t("importTitle")}</h2>
+    <p class="muted" style="font-size:14px">${t("imHelp", { store: esc(store(S.storeId)?.name || "") })}</p>
+    <pre class="imexample">${t("imExample")}</pre>
+    <label>${t("imPaste")}<textarea id="im-text" spellcheck="false" autocapitalize="off" placeholder="${t("imPh")}">${esc(text)}</textarea></label>
+    <p class="err" id="im-err" role="alert"></p>
+    <div class="foot"><button type="button" class="btn ghost" data-act="close">${t("cancel")}</button>
+      <button class="btn" type="submit" style="flex:1">${t("imReview")}</button></div></form></div>`;
+  if (!text) setTimeout(() => $("#im-text").focus(), 50);
+}
+function reviewImport() {
+  const text = $("#im-text").value;
+  const rows = parseList(text);
+  if (!rows.length) return ($("#im-err").textContent = t("imEmpty"));
+  S.importRows = rows; S.importText = text;
+  const ok = rows.filter((r) => !r.err && !r.skip), skip = rows.filter((r) => r.skip), bad = rows.filter((r) => r.err);
+  $("#sheetRoot").innerHTML = `<div class="sheetbg" data-act="closeBg"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="imTitle">
+    <h2 id="imTitle">${t("imCheck")}</h2>
+    <p class="imsum"><b>${t("imNew", { n: ok.length })}</b>${skip.length ? ` · ${t("imExists", { n: skip.length })}` : ""}${bad.length ? ` · <span class="danger-text">${t("imBad", { n: bad.length })}</span>` : ""}</p>
+    <div class="picks imrows">${rows.map((r) => `<div class="imrow ${r.err ? "bad" : r.skip ? "skip" : ""}">
+      <div style="min-width:0"><b>${esc(r.name || "—")}</b>
+        <div class="meta">${r.err ? `<span class="danger-text">${t("imLine", { n: r.line })}: ${r.err}</span>`
+          : r.skip ? `<span>${t("imSkip")}</span>`
+          : `${t("cost")} <span class="num">${money(r.cost)}</span> · ${r.price != null ? `${t("price")} <span class="num">${money(r.price)}</span>` : t("noPrice")}`}</div></div>
+      ${!r.err && !r.skip ? `<span class="num imqty">${r.qty}</span>` : ""}</div>`).join("")}</div>
+    <p class="err" id="im-err" role="alert"></p>
+    <div class="foot"><button type="button" class="btn ghost" data-act="imBack">${t("imBack")}</button>
+      <button type="button" class="btn" data-act="imSave" style="flex:1" ${ok.length ? "" : "disabled"}>${t("imSave", { n: ok.length })}</button></div></div></div>`;
+}
+async function saveImport(btn) {
+  const rows = S.importRows.filter((r) => !r.err && !r.skip), sid = S.storeId;
+  btn.disabled = true; btn.textContent = t("saving");
+  try {
+    const { data, error } = await sb.from("products").insert(rows.map((r) => ({ org_id: S.org.id, name: r.name, cost: r.cost, price: r.price, low_stock_threshold: 3 }))).select("id");
+    if (error) throw error;
+    let failed = 0;
+    for (const [i, r] of rows.entries()) {               // stock for the store you're in
+      if (!r.qty || !data?.[i]?.id) continue;
+      btn.textContent = t("imSaving", { i: i + 1, n: rows.length });
+      const { error: e } = await sb.rpc("adjust_stock", { p_product: data[i].id, p_store: sid, p_delta: r.qty });
+      if (e) failed++;
+    }
+    closeSheet(); S.importRows = null; await loadAll(); render();
+    toast(failed ? t("imDoneStockErr", { n: rows.length, f: failed }) : t("imDone", { n: rows.length }));
+  } catch (e) { $("#im-err").textContent = errText(e); btn.disabled = false; btn.textContent = t("imSave", { n: rows.length }); }
+}
+
 function closeSheet() { $("#sheetRoot").innerHTML = ""; S.sale = null; }
 
 /* ───────────── events ───────────── */
@@ -738,6 +809,9 @@ document.addEventListener("click", async (e) => {
     askDelEmpInline: () => ($(`#del-${id}`).innerHTML = `<div class="confirm">${t("removeNamedQ", { name: esc(S.employees.find((x) => x.id === id)?.name || "") })} <button type="button" class="btn danger" data-act="doDelEmp" data-id="${id}">${t("yesRemove")}</button> <button type="button" class="btn ghost" data-act="cancelDel" data-id="${id}">${t("cancel")}</button></div>`),
     cancelDel: () => ($(`#del-${id}`).innerHTML = ""),
     menu: openMenu,
+    import: () => openImport(),
+    imBack: () => openImport(S.importText),
+    imSave: () => saveImport(el),
     employees: () => { closeSheet(); S.view = "employees"; S.empSales = null; $("#app").innerHTML = ""; render(); scrollTo(0, 0); },
     signOut: async () => { if (S.channel) { sb.removeChannel(S.channel); S.channel = null; }
       setStore(null); S.view = "main"; S.member = null; S.org = null; closeSheet(); $("#bar").hidden = true;
@@ -769,7 +843,7 @@ document.addEventListener("submit", (e) => {
   e.preventDefault();
   const f = e.target;
   ({ authForm: () => submitAuth(f), empForm: () => submitEmp(f), orgForm: submitOrg, storesForm: submitStores,
-     empAddForm: submitEmpAdd, empEditForm: () => submitEmpEdit(f),
+     empAddForm: submitEmpAdd, empEditForm: () => submitEmpEdit(f), importForm: reviewImport,
      saleForm: () => S.sale?.pid && submitSale(f), pform: () => submitEdit(f) })[f.id]?.();
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
