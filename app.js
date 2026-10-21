@@ -1,6 +1,7 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm";
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
-import { t, lang, locale, setLang, errText, dec, SYN, TYPES } from "./i18n.js?v=202610212100";
+import * as CONFIG from "./config.js?v=202610212200";
+const { SUPABASE_URL, SUPABASE_ANON_KEY } = CONFIG;
+import { t, lang, locale, setLang, errText, dec, SYN, TYPES } from "./i18n.js?v=202610212200";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -13,9 +14,11 @@ const S = {
   employees: [], empTableMissing: false, busyLogin: false, redraw: null,
 };
 try { S.storeId = localStorage.getItem("storeId"); } catch (_) {}
-/* catalog code: from a shared link (?c=xxxx) or remembered on this device */
+/* catalog code: from a shared link (?c=xxxx), remembered on this device, or CATALOG_CODE in config.js
+   (then anyone opening the main link sees the products first) */
 S.catalog = new URLSearchParams(location.search).get("c");
 try { if (S.catalog) localStorage.setItem("catalog", S.catalog); else S.catalog = localStorage.getItem("catalog"); } catch (_) {}
+S.catalog ||= CONFIG.CATALOG_CODE || null;
 
 /* ───────────── helpers ───────────── */
 const $ = (s) => document.querySelector(s);
