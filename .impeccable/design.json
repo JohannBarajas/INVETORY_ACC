@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-21T12:00:00Z",
+  "title": "Design System: Accessory Inventory",
+  "extensions": {
+    "colorMeta": {
+      "harbor-teal": { "role": "primary", "displayName": "Harbor Teal", "canonical": "#0f4c5c", "tonalRamp": ["#06242c", "#0a3540", "#0f4c5c", "#226676", "#3f8495", "#5fb3c4", "#a3d6e0", "#e2f2f5"] },
+      "tag-yellow": { "role": "secondary", "displayName": "Tag Yellow", "canonical": "#f6c445", "tonalRamp": ["#2a2100", "#5a4508", "#8f6d0f", "#c69a22", "#f6c445", "#f9d677", "#fce8b0", "#fef7e3"] },
+      "reorder-red": { "role": "tertiary", "displayName": "Reorder Red", "canonical": "#b3261e", "tonalRamp": ["#3a0c09", "#601410", "#8a1d17", "#b3261e", "#d9473d", "#ff8a80", "#fbc9c4", "#fdeceb"] },
+      "counter-mist": { "role": "neutral", "displayName": "Counter Mist", "canonical": "#f3f5f4", "tonalRamp": ["#0d1619", "#152227", "#24363c", "#5b6b70", "#93a4a8", "#dde3e2", "#eaf0ef", "#f3f5f4"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#14232a" },
+      "muted": { "role": "neutral", "displayName": "Muted", "canonical": "#5b6b70" },
+      "line": { "role": "neutral", "displayName": "Line", "canonical": "#dde3e2" },
+      "soft": { "role": "neutral", "displayName": "Soft", "canonical": "#eaf0ef" },
+      "surface": { "role": "neutral", "displayName": "Surface", "canonical": "#ffffff" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page titles." },
+      "headline": { "displayName": "Headline", "purpose": "Store name in the sticky header; sheet titles." },
+      "title": { "displayName": "Title", "purpose": "Card section titles and employee names." },
+      "body": { "displayName": "Body", "purpose": "Running text and sale rows; 16px so phones don't zoom." },
+      "item-name": { "displayName": "Item name", "purpose": "Product names in the inventory list." },
+      "label": { "displayName": "Label", "purpose": "Form labels and fine print." },
+      "eyebrow": { "displayName": "Eyebrow", "purpose": "Uppercase context line over titles." },
+      "number": { "displayName": "Number", "purpose": "Stock counts, prices, totals and codes, in tabular mono." }
+    },
+    "shadows": [
+      { "name": "sheet-backdrop", "value": "rgba(5,15,18,.5)", "purpose": "Dimmed backdrop behind bottom sheets; the only depth cue besides the toast." }
+    ],
+    "motion": [],
+    "breakpoints": [
+      { "name": "row-wrap", "value": "max-width: 359px" },
+      { "name": "emp-summary-2col", "value": "max-width: 380px" },
+      { "name": "catalog-3col", "value": "min-width: 560px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default action: Save, Sign in, Copy link.",
+      "html": "<button class=\"ds-btn\">Save</button>",
+      "css": ".ds-btn{border:0;border-radius:12px;padding:12px 16px;min-height:50px;font:700 16px Figtree,system-ui,sans-serif;background:#0f4c5c;color:#fff;cursor:pointer}.ds-btn:hover{background:#0a3540}.ds-btn:focus-visible{outline:3px solid #f6c445;outline-offset:2px}.ds-btn:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Sell Button",
+      "kind": "button",
+      "refersTo": "button-sell",
+      "description": "The bottom-bar Sell action; the only yellow button.",
+      "html": "<button class=\"ds-btn-sell\">Sell</button>",
+      "css": ".ds-btn-sell{border:0;border-radius:12px;padding:12px 16px;min-height:50px;min-width:200px;font:800 18px Figtree,system-ui,sans-serif;background:#f6c445;color:#2a2100;cursor:pointer}.ds-btn-sell:hover{background:#f9d677}.ds-btn-sell:focus-visible{outline:3px solid #0f4c5c;outline-offset:2px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary actions: + Add, Cancel, Edit, Log out.",
+      "html": "<button class=\"ds-btn-ghost\">+ Add</button>",
+      "css": ".ds-btn-ghost{border:1px solid #dde3e2;border-radius:12px;padding:12px 16px;min-height:50px;font:700 16px Figtree,system-ui,sans-serif;background:transparent;color:#14232a;cursor:pointer}.ds-btn-ghost:hover{background:#eaf0ef}.ds-btn-ghost:focus-visible{outline:3px solid #f6c445;outline-offset:2px}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Final confirmation of a remove or delete only.",
+      "html": "<button class=\"ds-btn-danger\">Yes, delete</button>",
+      "css": ".ds-btn-danger{border:0;border-radius:12px;padding:12px 16px;min-height:50px;font:700 16px Figtree,system-ui,sans-serif;background:#b3261e;color:#fff;cursor:pointer}.ds-btn-danger:hover{background:#8a1d17}.ds-btn-danger:focus-visible{outline:3px solid #f6c445;outline-offset:2px}"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Search field in the sticky header and sale sheet.",
+      "html": "<input class=\"ds-input\" type=\"search\" placeholder=\"Search: case 16, cable…\">",
+      "css": ".ds-input{font:400 16px Figtree,system-ui,sans-serif;color:#14232a;background:#fff;border:1px solid #dde3e2;border-radius:12px;padding:12px;min-height:50px;width:280px}.ds-input:focus-visible{outline:3px solid #f6c445;outline-offset:2px}"
+    },
+    {
+      "name": "Inventory Row",
+      "kind": "custom",
+      "refersTo": "stepper-button",
+      "description": "Thumbnail, name, cost/price line and the −/+ stepper with a mono count.",
+      "html": "<div class=\"ds-row\"><span class=\"ds-thumb\">C</span><div><div class=\"ds-name\">Case iPhone 16</div><div class=\"ds-cost\">Cost <b>$4.50</b> · Price <b>$19.99</b></div></div><div class=\"ds-step\"><button aria-label=\"Remove one\">−</button><span class=\"ds-q\">2</span><button aria-label=\"Add one\">+</button></div></div>",
+      "css": ".ds-row{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 14px;background:#fff;border:1px solid #dde3e2;border-radius:16px;width:360px;font-family:Figtree,system-ui,sans-serif;color:#14232a}.ds-thumb{width:52px;height:52px;border-radius:10px;background:#eaf0ef;display:grid;place-items:center;font:800 20px Archivo,Arial,sans-serif;color:#5b6b70}.ds-name{font-weight:700;font-size:17px;line-height:1.25}.ds-cost{font-size:14px;color:#5b6b70}.ds-cost b{font-family:'IBM Plex Mono',monospace;font-weight:600;color:#14232a}.ds-step{display:flex;align-items:center;gap:4px}.ds-step button{width:46px;height:46px;border-radius:12px;border:1px solid #dde3e2;background:#fff;color:#14232a;font-size:24px;font-weight:700;cursor:pointer}.ds-step button:focus-visible{outline:3px solid #f6c445;outline-offset:2px}.ds-q{font:600 20px 'IBM Plex Mono',monospace;min-width:40px;text-align:center;color:#b3261e}"
+    },
+    {
+      "name": "Reorder Box",
+      "kind": "card",
+      "refersTo": "reorder-box",
+      "description": "Low-stock alert at the top of the store screen.",
+      "html": "<div class=\"ds-low\"><div class=\"ds-lowhead\"><span>REORDER · RUNNING LOW</span><b>2</b></div><div class=\"ds-lowitem\"><span>Charger USB-C 20W</span><b>1 left</b></div><div class=\"ds-lowitem\"><span>Glass iPhone 15</span><b>sold out</b></div></div>",
+      "css": ".ds-low{background:#fdeceb;border:1px solid #b3261e;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;width:340px;font-family:Figtree,system-ui,sans-serif;color:#14232a}.ds-lowhead{display:flex;justify-content:space-between;align-items:center;color:#b3261e}.ds-lowhead span{font-size:12px;letter-spacing:.08em;font-weight:700}.ds-lowhead b{font:600 18px 'IBM Plex Mono',monospace}.ds-lowitem{display:flex;justify-content:space-between;font-size:15px}.ds-lowitem b{color:#b3261e;font:600 15px 'IBM Plex Mono',monospace}"
+    },
+    {
+      "name": "Price Tag",
+      "kind": "chip",
+      "refersTo": "price-tag",
+      "description": "Catalog price on a yellow hang-tag shape.",
+      "html": "<span class=\"ds-price\">$19.99</span>",
+      "css": ".ds-price{font:600 16px 'IBM Plex Mono',monospace;background:#f6c445;color:#2a2100;border-radius:4px 10px 10px 4px;padding:1px 8px 1px 10px}"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "description": "Employee access status.",
+      "html": "<span class=\"ds-pill\">Active</span> <span class=\"ds-pill ds-off\">Access off</span>",
+      "css": ".ds-pill{font:700 12px Figtree,system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;border-radius:99px;padding:3px 10px;background:#eaf0ef;color:#0f4c5c}.ds-pill.ds-off{background:#fdeceb;color:#b3261e}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Price Tag",
+    "overview": "The app borrows from the shelf label on every accessory peg: a yellow tag, a bold name, a number you can read from arm's length. Everything else steps back: calm harbor-teal chrome, flat white cards on a misty grey-green ground, and thin borders instead of shadows. The yellow is saved for the moments that are about money changing hands: the Sell button, and prices in the customer catalog.\n\nDensity is set for a thumb, not a mouse. Controls are chunky (50px tall, 12px corners), rows give the item name room, and numbers are always set in a tabular mono so stock counts and totals line up and never jitter while someone taps − / +. The layout is a single 640px column with a sticky header for the store name and search, and a fixed bottom bar for the two most-used actions.\n\nThe tone is clean, fast, practical. Nothing decorative, no gradients, no illustration. Personality comes from three things only: the yellow tag, the heavy Archivo headings, and the mono numbers.",
+    "keyCharacteristics": [
+      "Flat surfaces with 1px borders; depth only for sheets and toasts.",
+      "One loud accent (Tag Yellow) for selling and price; Harbor Teal for everything else that's interactive.",
+      "Reorder Red is a status color only: low stock, voids, destructive actions.",
+      "Tabular mono for every number a person compares: stock, cost, price, totals, codes.",
+      "Thumb-first: primary actions live in the bottom bar; targets are 44–50px.",
+      "Light and dark themes follow the system setting."
+    ],
+    "rules": [
+      { "name": "The One Tag Rule", "body": "Tag Yellow means \"money.\" It goes on the Sell action and on prices (plus the focus ring and revealed codes), never on generic buttons, banners or decoration.", "section": "colors" },
+      { "name": "The Red Is Status Rule", "body": "Reorder Red marks something that needs attention or can't be undone. It is never a brand or decoration color.", "section": "colors" },
+      { "name": "The Receipt Rule", "body": "Any number a person compares or counts is set in IBM Plex Mono with tabular figures. Prose numbers (\"3 items\") may stay in Figtree.", "section": "typography" },
+      { "name": "The Thumb Zone Rule", "body": "The actions staff use most go in the bottom bar or the bottom of a sheet, never only in the header.", "section": "layout" },
+      { "name": "The Border, Not Shadow Rule", "body": "Separate things with a 1px Line border or a change of surface. Don't add box-shadows to cards or buttons.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep every tappable control at least 44px, and primary controls at 50px.",
+      "Do set stock, prices, totals and codes in IBM Plex Mono with tabular figures.",
+      "Do put the most-used actions (Sell, Add) in the fixed bottom bar.",
+      "Do use Line borders (1px #dde3e2) and Surface/Mist contrast to separate things.",
+      "Do keep inputs at 16px text so phones don't zoom.",
+      "Do define every color as a CSS variable with a dark-theme value."
+    ],
+    "donts": [
+      "Don't use Tag Yellow for anything but selling, prices, the focus ring and revealed codes.",
+      "Don't use Reorder Red as decoration; it means low stock, errors or destructive actions.",
+      "Don't add shadows to cards, rows or buttons; only sheets and toasts sit above the page.",
+      "Don't add gradients, illustrations or decorative imagery; product photos are the only images.",
+      "Don't shrink controls below 44px to fit more on screen."
+    ]
+  }
+}
