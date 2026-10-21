@@ -1,6 +1,6 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
-import { t, lang, locale, setLang, errText, dec, SYN, TYPES } from "./i18n.js?v=202610212000";
+import { t, lang, locale, setLang, errText, dec, SYN, TYPES } from "./i18n.js?v=202610212100";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -8,7 +8,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const S = {
   session: null, member: null, org: null,
   stores: [], products: [], inv: new Map(), sales: [], people: new Map(),
-  storeId: null, q: "", type: "all", view: "loading",
+  storeId: null, q: "", type: "all", open: null, view: "loading",
   pending: new Map(), timers: new Map(), sale: null, channel: null,
   employees: [], empTableMissing: false, busyLogin: false, redraw: null,
 };
@@ -452,9 +452,13 @@ function renderStore() {
         <h2 class="storeh"><button class="storebtn" data-act="menu" aria-haspopup="dialog"><span class="nm" id="storeName"></span><span class="sr">, ${t("storeMenu")}</span>
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></h2>
         <input id="q" type="search" placeholder="${t("search")}" aria-label="${t("searchLabel")}" autocomplete="off"></div>
-      <div id="lowBox"></div>
-      <details class="today" id="today"><summary id="todaySum"></summary><div id="todayList"></div></details>
-      <h3>${t("inventory")}</h3><div id="chips"></div><div class="list" id="plist"></div>`;
+      <div class="stats">
+        <button type="button" class="stat" id="tToday" data-act="panel" data-panel="today" aria-controls="pToday" aria-expanded="false"></button>
+        <div id="tLowWrap"></div></div>
+      <div class="panel" id="pToday" hidden></div>
+      <div class="panel low" id="pLow" hidden></div>
+      <div class="secthead"><h3>${t("inventory")}</h3><span class="muted num" id="invCount"></span></div>
+      <div id="chips"></div><div class="list" id="plist"></div>`;
     $("#q").value = S.q;
     $("#q").addEventListener("input", (e) => { S.q = e.target.value; renderList(); });
   }
@@ -464,8 +468,8 @@ function renderStore() {
 function renderToday() {
   const tot = S.sales.reduce((a, s) => a + s.unit_price * s.qty, 0);
   const n = S.sales.reduce((a, s) => a + s.qty, 0);
-  $("#todaySum").innerHTML = `<span><span class="eyebrow">${t("todaysSales")}</span><br><span class="muted" style="font-size:14px">${t("itemsTap", { n })}</span></span><span class="tot">${money(tot)}</span>`;
-  $("#todayList").innerHTML = (S.sales.length
+  $("#tToday").innerHTML = `<span class="lbl">${t("todaysSales")}</span><b>${money(tot)}</b><span class="sub">${t("itemsN", { n })}</span>`;
+  $("#pToday").innerHTML = (S.sales.length
     ? S.sales.map((s) => `<div class="sale"><div style="min-width:0"><div>${s.qty} × ${esc(s.product_name)}</div>
         <div class="meta">${time(s.created_at)} · ${t("each", { price: money(s.unit_price) })}${(s.seller_name || S.people.get(s.sold_by)) ? " · " + esc(s.seller_name || S.people.get(s.sold_by)) : ""}</div></div>
         <span class="amt">${money(s.unit_price * s.qty)}</span><button class="undo" data-act="voidSale" data-id="${s.id}">${t("void")}</button></div>`).join("")
@@ -475,21 +479,34 @@ function renderToday() {
 function renderList() {
   const sid = S.storeId;
   const low = S.products.filter((p) => qtyOf(p.id, sid) < p.low_stock_threshold).sort((a, b) => qtyOf(a.id, sid) - qtyOf(b.id, sid));
-  $("#lowBox").innerHTML = low.length ? `<div class="lowbox"><div class="lowhead"><span class="eyebrow">${t("reorderHead")}</span><b class="num">${low.length}</b></div>
-    ${low.map((p) => `<div class="lowitem"><span>${esc(p.name)}</span><b class="num">${left(qtyOf(p.id, sid))}</b></div>`).join("")}</div>` : "";
-  if (!S.products.length) { $("#chips").innerHTML = ""; $("#plist").innerHTML = `<div class="empty">${t("emptyInv")}</div>`; return; }
+  if (S.open === "low" && !low.length) S.open = null;
+  $("#tLowWrap").innerHTML = low.length
+    ? `<button type="button" class="stat warn" data-act="panel" data-panel="low" aria-controls="pLow" aria-expanded="${S.open === "low"}"><span class="lbl">${t("reorderLbl")}</span><b>${low.length}</b><span class="sub">${t("runningLow")}</span></button>`
+    : `<div class="stat ok"><span class="lbl">${t("reorderLbl")}</span><b>0</b><span class="sub">${t("allStocked")}</span></div>`;
+  $("#pLow").innerHTML = low.map((p) => `<div class="lowitem"><span>${esc(p.name)}</span><b class="num">${left(qtyOf(p.id, sid))}</b></div>`).join("");
+  showPanels();
+  if (!S.products.length) { $("#chips").innerHTML = ""; $("#invCount").textContent = ""; $("#plist").innerHTML = `<div class="empty">${t("emptyInv")}</div>`; return; }
   $("#chips").innerHTML = chips(S.products, S.type, "listType");
   const list = findItems(S.products, S.q, S.type);
-  const meta = (p) => [isOwner() ? `${t("cost")} <b>${money(p.cost)}</b>` : "", p.price != null ? `${t("price")} <b>${money(p.price)}</b>` : ""].filter(Boolean);
+  $("#invCount").textContent = list.length;
   $("#plist").innerHTML = list.length ? list.map((p) => {
     const q = qtyOf(p.id, sid);
-    return `<div class="row">${thumb(p)}<div style="min-width:0">
+    return `<div class="row">${thumb(p)}<div class="info">
       <button class="name" data-act="edit" data-id="${p.id}">${esc(p.name)}</button>
-      <div class="cost">${[...meta(p), `<button class="editlink" data-act="edit" data-id="${p.id}">${t("edit")}</button>`].join(" · ")}</div></div>
+      <div class="meta">${p.price != null ? `<span class="num">${money(p.price)}</span>` : `<span class="muted">${t("noPrice")}</span>`}${isOwner() ? `<span class="costm">${t("cost")} ${money(p.cost)}</span>` : ""}</div></div>
       <div class="stepper"><button data-act="dec" data-id="${p.id}" aria-label="${esc(t("removeOne", { name: p.name }))}">−</button>
       <span class="q ${q < p.low_stock_threshold ? "low" : ""}">${q}</span>
       <button data-act="inc" data-id="${p.id}" aria-label="${esc(t("addOne", { name: p.name }))}">+</button></div></div>`;
   }).join("") : noMatch(S.q, S.type, "listAll");
+}
+
+/* today's sales / reorder: two tiles on top, each opens its list below (one at a time) */
+function showPanels() {
+  for (const [k, tile, panel] of [["today", "#tToday", "#pToday"], ["low", "#tLowWrap .stat", "#pLow"]]) {
+    const open = S.open === k;
+    if ($(panel)) $(panel).hidden = !open;
+    $(tile)?.setAttribute("aria-expanded", String(open));
+  }
 }
 
 /* store menu: tapping the store name opens a bottom sheet to switch store, reach owner tools, or log out */
@@ -727,6 +744,7 @@ document.addEventListener("click", async (e) => {
     settings: () => { closeSheet(); S.view = "settings"; $("#app").innerHTML = ""; render(); scrollTo(0, 0); }, back: () => { S.view = "main"; $("#app").innerHTML = ""; render(); },
     inc: () => bump(id, 1), dec: () => bump(id, -1),
     edit: () => openEdit(id), add: () => openEdit(null), sell: openSale,
+    panel: () => { S.open = S.open === el.dataset.panel ? null : el.dataset.panel; showPanels(); },
     listType: () => { S.type = el.dataset.type; renderList(); },
     listAll: () => { S.type = "all"; S.q = ""; $("#q").value = ""; renderList(); },
     saleType: () => { S.sale.type = el.dataset.type; drawSale(); },
